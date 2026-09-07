@@ -12,12 +12,23 @@ import {
 } from './types';
 import { normalizeAddress, isValidEvmAddress } from './validation';
 
-const DB_PATH = path.join(process.cwd(), 'arcstonks.db');
+function getDatabasePath(): string {
+  if (process.env.DB_PATH) {
+    return process.env.DB_PATH;
+  }
+  // Detect serverless environment (Vercel, AWS Lambda, Netlify)
+  const isServerless =
+    process.env.VERCEL === '1' ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
+    process.env.LAMBDA_TASK_ROOT !== undefined ||
+    Boolean(process.env.NETLIFY);
 
-// Ensure db directory exists
-const dbDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+  if (isServerless) {
+    const tmpDir = process.env.TMPDIR || '/tmp';
+    return path.join(tmpDir, 'arcstonks.db');
+  }
+
+  return path.join(process.cwd(), 'arcstonks.db');
 }
 
 // Global database instance with WAL mode for high concurrency
@@ -25,8 +36,39 @@ let db: Database.Database;
 
 function getDb(): Database.Database {
   if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
+    const isServerless =
+      process.env.VERCEL === '1' ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
+      process.env.LAMBDA_TASK_ROOT !== undefined ||
+      Boolean(process.env.NETLIFY);
+
+    let dbPath = getDatabasePath();
+    try {
+      const dbDir = path.dirname(dbPath);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+      db = new Database(dbPath);
+    } catch (err: any) {
+      console.warn(`Could not open database at ${dbPath} (${err.message}). Trying fallback to /tmp/arcstonks.db...`);
+      try {
+        const fallbackPath = path.join('/tmp', 'arcstonks.db');
+        const fallbackDir = path.dirname(fallbackPath);
+        if (!fs.existsSync(fallbackDir)) {
+          fs.mkdirSync(fallbackDir, { recursive: true });
+        }
+        db = new Database(fallbackPath);
+      } catch (fallbackErr: any) {
+        console.warn(`Fallback to /tmp failed (${fallbackErr.message}). Using in-memory database as last resort.`);
+        db = new Database(':memory:');
+      }
+    }
+
+    if (isServerless) {
+      db.pragma('journal_mode = DELETE');
+    } else {
+      db.pragma('journal_mode = WAL');
+    }
     db.pragma('synchronous = NORMAL');
     initSchema();
   }
