@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const settings = getSettings();
     if (!settings.waitlist_enabled) {
       return NextResponse.json(
-        { error: 'The ArcStonks waitlist is currently closed. Stay tuned on our community channels!' },
+        { error: 'Waitlist is currently closed.' },
         { status: 403 }
       );
     }

@@ -332,9 +332,9 @@ export default function Waitlist() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || !allTasksCompleted || !address || !isVerified}
+                disabled={loading || !address || (taskStats.requiredTotal > 0 && !allTasksCompleted) || !isVerified}
                 className={`w-full py-4 rounded-xl font-mono font-bold text-sm tracking-wider uppercase flex items-center justify-center space-x-2 transition-all duration-300 ${
-                  loading || !allTasksCompleted || !address || !isVerified
+                  loading || !address || (taskStats.requiredTotal > 0 && !allTasksCompleted) || !isVerified
                     ? 'bg-slate-800/80 text-slate-500 border border-slate-700 cursor-not-allowed'
                     : 'bg-gradient-to-r from-cyan-500 to-teal-400 text-black hover:shadow-cyan-glow transform active:scale-98 cursor-pointer'
                 }`}
@@ -344,10 +344,10 @@ export default function Waitlist() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Verifying & Submitting...</span>
                   </>
-                ) : !allTasksCompleted ? (
-                  <span>Complete Required Tasks ({taskStats.completedRequired}/{taskStats.requiredTotal})</span>
                 ) : !address ? (
                   <span>Enter Wallet Address Above</span>
+                ) : taskStats.requiredTotal > 0 && !allTasksCompleted ? (
+                  <span>Complete Required Tasks ({taskStats.completedRequired}/{taskStats.requiredTotal})</span>
                 ) : !isVerified ? (
                   <span>Complete Anti-Bot Verification</span>
                 ) : (

@@ -35,6 +35,7 @@ export default function CommunityTasks({
 }: CommunityTasksProps) {
   const [tasks, setTasks] = useState<PublicTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [startedTasks, setStartedTasks] = useState<Record<number, boolean>>({});
   const [actionTimestamps, setActionTimestamps] = useState<Record<number, number>>({});
   const [countdowns, setCountdowns] = useState<Record<number, number>>({});
@@ -63,28 +64,43 @@ export default function CommunityTasks({
     return () => clearInterval(timer);
   }, [countdowns]);
 
-  // Fetch tasks
+  // Fetch tasks on mount or retry
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
-      const url = isWalletValid
-        ? `/api/tasks?address=${encodeURIComponent(walletAddress.trim())}`
-        : '/api/tasks';
-      const res = await fetch(url, { cache: 'no-store' });
+      setFetchError(null);
+      const res = await fetch('/api/tasks', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks || []);
+      } else {
+        setFetchError('Failed to load community tasks from server.');
       }
     } catch (err) {
       console.error('Failed to fetch tasks', err);
+      setFetchError('Network error connecting to tasks API.');
     } finally {
       setLoading(false);
     }
-  }, [walletAddress, isWalletValid]);
+  }, []);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  // When a valid wallet is entered, quietly check completion status in background
+  useEffect(() => {
+    if (isWalletValid) {
+      fetch(`/api/tasks?address=${encodeURIComponent(walletAddress.trim())}`, { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.tasks) {
+            setTasks(data.tasks);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [walletAddress, isWalletValid]);
 
   // Evaluate required completion and notify parent
   useEffect(() => {
@@ -199,8 +215,27 @@ export default function CommunityTasks({
     );
   }
 
+  if (fetchError && tasks.length === 0) {
+    return (
+      <div className="py-6 text-center space-y-3 border border-rose-500/30 rounded-xl bg-rose-950/20 p-4 font-mono text-xs text-rose-300">
+        <div>{fetchError}</div>
+        <button
+          type="button"
+          onClick={fetchTasks}
+          className="px-4 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 text-xs font-mono"
+        >
+          Retry Loading Tasks
+        </button>
+      </div>
+    );
+  }
+
   if (tasks.length === 0) {
-    return null; // No active tasks configured
+    return (
+      <div className="py-6 text-center border border-cyan-500/20 rounded-xl bg-slate-950/40 p-4 font-mono text-xs text-slate-400">
+        No community tasks available.
+      </div>
+    );
   }
 
   return (

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
-import { getAllWaitlistEntriesForExport } from '@/lib/db';
+import { getAllWaitlistAddressesForExport } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,17 +10,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const entries = getAllWaitlistEntriesForExport();
+    const addresses = getAllWaitlistAddressesForExport();
 
-    // Create CSV formatted string starting with wallet_address
-    const csvHeader = 'wallet_address,x_handle,created_at\r\n';
-    const csvRows = entries
-      .map(e => `${e.wallet_address},${e.x_handle || ''},${e.created_at}`)
-      .join('\r\n');
+    // Create CSV formatted string with ONLY wallet_address
+    const csvHeader = 'wallet_address\r\n';
+    const csvRows = addresses.join('\r\n');
     const csvContent = csvHeader + csvRows;
 
     const timestamp = new Date().toISOString().slice(0, 10);
-    const filename = `wallet_address_${timestamp}.csv`;
+    const filename = `waitlist_wallets_${timestamp}.csv`;
 
     return new NextResponse(csvContent, {
       status: 200,

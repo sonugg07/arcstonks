@@ -48,6 +48,19 @@ function getDb(): Database.Database {
       if (!fs.existsSync(dbDir)) {
         fs.mkdirSync(dbDir, { recursive: true });
       }
+
+      // If running on serverless and target db does not exist, copy bundled root db
+      if (isServerless && !fs.existsSync(dbPath)) {
+        const rootDbPath = path.join(process.cwd(), 'arcstonks.db');
+        if (fs.existsSync(rootDbPath)) {
+          try {
+            fs.copyFileSync(rootDbPath, dbPath);
+          } catch (copyErr) {
+            console.warn('Could not copy bundled arcstonks.db:', copyErr);
+          }
+        }
+      }
+
       db = new Database(dbPath);
     } catch (err: any) {
       console.warn(`Could not open database at ${dbPath} (${err.message}). Trying fallback to /tmp/arcstonks.db...`);
@@ -79,6 +92,11 @@ function initSchema() {
   const database = db;
 
   database.exec(`
+    CREATE TABLE IF NOT EXISTS schema_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS site_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       waitlist_enabled INTEGER NOT NULL DEFAULT 1,
@@ -155,77 +173,85 @@ function initSchema() {
     `).run();
   }
 
-  // Seed default social tasks if table is empty
-  const taskCount = database.prepare('SELECT COUNT(*) as count FROM waitlist_tasks').get() as { count: number };
-  if (taskCount.count === 0) {
-    const defaultTasks = [
-      {
-        title: 'Follow ArcStonks on X',
-        type: 'Follow',
-        url: 'https://twitter.com/ArcStonks',
-        required: 1,
-        enabled: 1,
-        display_order: 1,
-      },
-      {
-        title: 'Like our announcement',
-        type: 'Like',
-        url: 'https://twitter.com/ArcStonks/status/123456789',
-        required: 1,
-        enabled: 1,
-        display_order: 2,
-      },
-      {
-        title: 'Repost our announcement',
-        type: 'Repost',
-        url: 'https://twitter.com/ArcStonks/status/123456789',
-        required: 1,
-        enabled: 1,
-        display_order: 3,
-      },
-      {
-        title: 'Comment on our announcement',
-        type: 'Comment',
-        url: 'https://twitter.com/ArcStonks/status/123456789',
-        required: 1,
-        enabled: 1,
-        display_order: 4,
-      },
-    ];
+  // Check if one-time bootstrap seed was already applied (guarantees deleted records are never recreated)
+  const seedApplied = database.prepare("SELECT value FROM schema_meta WHERE key = 'initial_seed_completed'").get() as { value: string } | undefined;
 
-    const insertTask = database.prepare(`
-      INSERT INTO waitlist_tasks (title, type, url, required, enabled, display_order)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+  if (!seedApplied) {
+    // Seed default social tasks on initial system bootstrap only
+    const taskCount = database.prepare('SELECT COUNT(*) as count FROM waitlist_tasks').get() as { count: number };
+    if (taskCount.count === 0) {
+      const defaultTasks = [
+        {
+          title: 'Follow ArcStonks on X',
+          type: 'Follow',
+          url: 'https://twitter.com/ArcStonks',
+          required: 1,
+          enabled: 1,
+          display_order: 1,
+        },
+        {
+          title: 'Like our announcement',
+          type: 'Like',
+          url: 'https://twitter.com/ArcStonks/status/123456789',
+          required: 1,
+          enabled: 1,
+          display_order: 2,
+        },
+        {
+          title: 'Repost our announcement',
+          type: 'Repost',
+          url: 'https://twitter.com/ArcStonks/status/123456789',
+          required: 1,
+          enabled: 1,
+          display_order: 3,
+        },
+        {
+          title: 'Comment on our announcement',
+          type: 'Comment',
+          url: 'https://twitter.com/ArcStonks/status/123456789',
+          required: 1,
+          enabled: 1,
+          display_order: 4,
+        },
+      ];
 
-    database.transaction(() => {
-      for (const t of defaultTasks) {
-        insertTask.run(t.title, t.type, t.url, t.required, t.enabled, t.display_order);
-      }
-    })();
-  }
+      const insertTask = database.prepare(`
+        INSERT INTO waitlist_tasks (title, type, url, required, enabled, display_order)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
 
-  // Seed default eligible wallets if table is empty
-  const eligibleCount = database.prepare('SELECT COUNT(*) as count FROM eligible_wallets').get() as { count: number };
-  if (eligibleCount.count === 0) {
-    const defaultEligible = [
-      { address: '0x71C63397e3E79401736b43Fa9FE4B952E8C0409A', allocation: 2 },
-      { address: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30', allocation: 1 },
-      { address: '0xbDA5747bFD65F08deb54cb465eB87D40e51B197E', allocation: 3 },
-      { address: '0xdD2FD4581271e230360230F9337D5c0430Bf44C0', allocation: 1 },
-      { address: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', allocation: 2 },
-    ];
+      database.transaction(() => {
+        for (const t of defaultTasks) {
+          insertTask.run(t.title, t.type, t.url, t.required, t.enabled, t.display_order);
+        }
+      })();
+    }
 
-    const insertEligible = database.prepare(`
-      INSERT INTO eligible_wallets (wallet_address, allocation, status)
-      VALUES (?, ?, 'active')
-    `);
+    // Seed default eligible wallets on initial system bootstrap only
+    const eligibleCount = database.prepare('SELECT COUNT(*) as count FROM eligible_wallets').get() as { count: number };
+    if (eligibleCount.count === 0) {
+      const defaultEligible = [
+        { address: '0x71C63397e3E79401736b43Fa9FE4B952E8C0409A', allocation: 2 },
+        { address: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30', allocation: 1 },
+        { address: '0xbDA5747bFD65F08deb54cb465eB87D40e51B197E', allocation: 3 },
+        { address: '0xdD2FD4581271e230360230F9337D5c0430Bf44C0', allocation: 1 },
+        { address: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', allocation: 2 },
+      ];
 
-    database.transaction(() => {
-      for (const w of defaultEligible) {
-        insertEligible.run(normalizeAddress(w.address), w.allocation);
-      }
-    })();
+      const insertEligible = database.prepare(`
+        INSERT INTO eligible_wallets (wallet_address, allocation, status)
+        VALUES (?, ?, 'active')
+      `);
+
+      database.transaction(() => {
+        for (const w of defaultEligible) {
+          insertEligible.run(normalizeAddress(w.address), w.allocation);
+        }
+      })();
+    }
+
+    // Permanently record that initial bootstrap is done: NEVER recreate deleted tasks or wallets
+    database.prepare("INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('initial_seed_completed', '1')").run();
   }
 }
 
