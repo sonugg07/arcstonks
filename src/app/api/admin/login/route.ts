@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = signAdminToken();
-    const response = NextResponse.json({ success: true, message: 'Authenticated successfully' });
+    const response = NextResponse.json({ success: true, token, message: 'Authenticated successfully' });
 
     // Set HTTP-only secure cookie
     response.cookies.set({

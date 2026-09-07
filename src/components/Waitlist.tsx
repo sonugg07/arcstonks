@@ -39,8 +39,46 @@ export default function Waitlist() {
     }
   };
 
+  // Check waitlist enabled status and hydrate saved registration from server
   useEffect(() => {
     fetchSettings();
+
+    if (typeof window !== 'undefined') {
+      const savedWallet = localStorage.getItem('arc_waitlist_wallet');
+      const savedHandle = localStorage.getItem('arc_waitlist_x_handle');
+      if (savedHandle) {
+        setXHandle(savedHandle);
+      }
+      if (savedWallet && isValidEvmAddress(savedWallet)) {
+        setAddress(savedWallet);
+        if (localStorage.getItem('arc_waitlist_submitted') === 'true') {
+          setSuccessData({
+            message: 'Welcome to the ArcStonks Waitlist! Your wallet has been successfully recorded.',
+            alreadyExists: true,
+          });
+        }
+        // Verify with server: is this wallet currently on the waitlist in DB?
+        fetch(`/api/waitlist?address=${encodeURIComponent(savedWallet)}`, { cache: 'no-store' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.registered && data.entry) {
+              setSuccessData({
+                message: 'Welcome to the ArcStonks Waitlist! Your wallet has been successfully recorded.',
+                alreadyExists: true,
+              });
+              if (data.entry.x_handle) {
+                setXHandle(data.entry.x_handle);
+              }
+            } else {
+              // If admin deleted the wallet, clear saved state so user can submit again
+              localStorage.removeItem('arc_waitlist_wallet');
+              localStorage.removeItem('arc_waitlist_submitted');
+              setSuccessData(null);
+            }
+          })
+          .catch(() => {});
+      }
+    }
   }, []);
 
   const handleCaptchaVerify = (token: string) => {
@@ -105,6 +143,14 @@ export default function Waitlist() {
         message: data.message,
         alreadyExists: data.alreadyExists || false,
       });
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('arc_waitlist_wallet', trimmed);
+        if (xHandle.trim()) {
+          localStorage.setItem('arc_waitlist_x_handle', xHandle.trim());
+        }
+        localStorage.setItem('arc_waitlist_submitted', 'true');
+      }
 
       // Trigger celebration confetti if new submission!
       if (!data.alreadyExists) {
@@ -195,6 +241,11 @@ export default function Waitlist() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('arc_waitlist_wallet');
+                      localStorage.removeItem('arc_waitlist_x_handle');
+                      localStorage.removeItem('arc_waitlist_submitted');
+                    }
                     setSuccessData(null);
                     setAddress('');
                     setXHandle('');

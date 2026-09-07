@@ -204,6 +204,29 @@ function initSchema() {
       }
     })();
   }
+
+  // Seed default eligible wallets if table is empty
+  const eligibleCount = database.prepare('SELECT COUNT(*) as count FROM eligible_wallets').get() as { count: number };
+  if (eligibleCount.count === 0) {
+    const defaultEligible = [
+      { address: '0x71C63397e3E79401736b43Fa9FE4B952E8C0409A', allocation: 2 },
+      { address: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30', allocation: 1 },
+      { address: '0xbDA5747bFD65F08deb54cb465eB87D40e51B197E', allocation: 3 },
+      { address: '0xdD2FD4581271e230360230F9337D5c0430Bf44C0', allocation: 1 },
+      { address: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', allocation: 2 },
+    ];
+
+    const insertEligible = database.prepare(`
+      INSERT INTO eligible_wallets (wallet_address, allocation, status)
+      VALUES (?, ?, 'active')
+    `);
+
+    database.transaction(() => {
+      for (const w of defaultEligible) {
+        insertEligible.run(normalizeAddress(w.address), w.allocation);
+      }
+    })();
+  }
 }
 
 // -------------------------------------------------------------
@@ -244,6 +267,12 @@ export function updateSettings(waitlist_enabled?: boolean, checker_enabled?: boo
 // -------------------------------------------------------------
 // Waitlist Users
 // -------------------------------------------------------------
+
+export function getWaitlistUserByAddress(rawAddress: string): WaitlistUser | undefined {
+  const d = getDb();
+  const address = normalizeAddress(rawAddress);
+  return d.prepare('SELECT * FROM waitlist_users WHERE wallet_address = ?').get(address) as WaitlistUser | undefined;
+}
 
 export function addWaitlistUser(rawAddress: string, ip_hash?: string, xHandle?: string): { success: boolean; alreadyExists: boolean; entry?: WaitlistUser } {
   const d = getDb();

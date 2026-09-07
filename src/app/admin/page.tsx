@@ -100,10 +100,20 @@ export default function AdminPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Persistent Auth Fetch Helper (Supports Authorization Bearer token as well as cookies)
+  const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('arcstonks_admin_token') : null;
+    const headers = new Headers(options.headers || {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return fetch(url, { ...options, headers, cache: 'no-store' });
+  }, []);
+
   // Check auth
   const checkAuth = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/me', { cache: 'no-store' });
+      const res = await authFetch('/api/admin/me');
       const data = await res.json();
       setAuthenticated(data.authenticated);
       if (data.authenticated) {
@@ -112,16 +122,16 @@ export default function AdminPage() {
     } catch {
       setAuthenticated(false);
     }
-  }, []);
+  }, [authFetch]);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
   // Fetch Stats
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/stats', { cache: 'no-store' });
+      const res = await authFetch('/api/admin/stats');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -129,7 +139,7 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to fetch stats', err);
     }
-  };
+  }, [authFetch]);
 
   // Fetch Waitlist
   const fetchWaitlist = useCallback(async () => {
@@ -137,9 +147,8 @@ export default function AdminPage() {
     try {
       const limit = 25;
       const offset = waitlistPage * limit;
-      const res = await fetch(
-        `/api/admin/waitlist?search=${encodeURIComponent(waitlistSearch)}&limit=${limit}&offset=${offset}`,
-        { cache: 'no-store' }
+      const res = await authFetch(
+        `/api/admin/waitlist?search=${encodeURIComponent(waitlistSearch)}&limit=${limit}&offset=${offset}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -149,7 +158,7 @@ export default function AdminPage() {
     } finally {
       setWaitlistLoading(false);
     }
-  }, [waitlistSearch, waitlistPage]);
+  }, [authFetch, waitlistSearch, waitlistPage]);
 
   // Fetch Eligible
   const fetchEligible = useCallback(async () => {
@@ -157,9 +166,8 @@ export default function AdminPage() {
     try {
       const limit = 25;
       const offset = eligiblePage * limit;
-      const res = await fetch(
-        `/api/admin/eligible?search=${encodeURIComponent(eligibleSearch)}&limit=${limit}&offset=${offset}`,
-        { cache: 'no-store' }
+      const res = await authFetch(
+        `/api/admin/eligible?search=${encodeURIComponent(eligibleSearch)}&limit=${limit}&offset=${offset}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -169,13 +177,13 @@ export default function AdminPage() {
     } finally {
       setEligibleLoading(false);
     }
-  }, [eligibleSearch, eligiblePage]);
+  }, [authFetch, eligibleSearch, eligiblePage]);
 
   // Fetch Tasks
   const fetchTasks = useCallback(async () => {
     setTasksLoading(true);
     try {
-      const res = await fetch('/api/admin/tasks', { cache: 'no-store' });
+      const res = await authFetch('/api/admin/tasks');
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks || []);
@@ -183,7 +191,7 @@ export default function AdminPage() {
     } finally {
       setTasksLoading(false);
     }
-  }, []);
+  }, [authFetch]);
 
   useEffect(() => {
     if (authenticated) {
@@ -203,7 +211,7 @@ export default function AdminPage() {
     setTaskError(null);
 
     try {
-      const res = await fetch('/api/admin/tasks', {
+      const res = await authFetch('/api/admin/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -240,7 +248,7 @@ export default function AdminPage() {
     if (!editingTask) return;
 
     try {
-      const res = await fetch(`/api/admin/tasks/${editingTask.id}`, {
+      const res = await authFetch(`/api/admin/tasks/${editingTask.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,7 +274,7 @@ export default function AdminPage() {
   // Toggle Task Required
   const handleToggleTaskRequired = async (task: WaitlistTask) => {
     try {
-      const res = await fetch(`/api/admin/tasks/${task.id}`, {
+      const res = await authFetch(`/api/admin/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ required: !task.required }),
@@ -282,7 +290,7 @@ export default function AdminPage() {
   // Toggle Task Enabled
   const handleToggleTaskEnabled = async (task: WaitlistTask) => {
     try {
-      const res = await fetch(`/api/admin/tasks/${task.id}`, {
+      const res = await authFetch(`/api/admin/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !task.enabled }),
@@ -300,7 +308,7 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this community task?')) return;
 
     try {
-      const res = await fetch(`/api/admin/tasks/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/admin/tasks/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchTasks();
       }
@@ -327,6 +335,10 @@ export default function AdminPage() {
         throw new Error(data.error || 'Authentication failed');
       }
 
+      if (data.token && typeof window !== 'undefined') {
+        localStorage.setItem('arcstonks_admin_token', data.token);
+      }
+
       setAuthenticated(true);
       fetchStats();
       fetchWaitlist();
@@ -339,7 +351,10 @@ export default function AdminPage() {
 
   // Logout handler
   const handleLogout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' });
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('arcstonks_admin_token');
+    }
+    await authFetch('/api/admin/logout', { method: 'POST' });
     setAuthenticated(false);
     setPassword('');
   };
@@ -356,7 +371,7 @@ export default function AdminPage() {
         ? { waitlist_enabled: updatedValue }
         : { checker_enabled: updatedValue };
 
-      const res = await fetch('/api/admin/settings', {
+      const res = await authFetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -382,7 +397,7 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this waitlist submission?')) return;
 
     try {
-      const res = await fetch(`/api/admin/waitlist/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/admin/waitlist/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchWaitlist();
         fetchStats();
@@ -404,7 +419,7 @@ export default function AdminPage() {
     }
 
     try {
-      const res = await fetch('/api/admin/eligible', {
+      const res = await authFetch('/api/admin/eligible', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -434,7 +449,7 @@ export default function AdminPage() {
     if (!editingWallet) return;
 
     try {
-      const res = await fetch(`/api/admin/eligible/${editingWallet.id}`, {
+      const res = await authFetch(`/api/admin/eligible/${editingWallet.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -459,7 +474,7 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this eligible wallet?')) return;
 
     try {
-      const res = await fetch(`/api/admin/eligible/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/admin/eligible/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchEligible();
         fetchStats();
@@ -478,7 +493,7 @@ export default function AdminPage() {
     setImportReport(null);
 
     try {
-      const res = await fetch('/api/admin/eligible/import', {
+      const res = await authFetch('/api/admin/eligible/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -509,7 +524,7 @@ export default function AdminPage() {
     }
 
     try {
-      const res = await fetch('/api/admin/eligible/batch-from-waitlist', {
+      const res = await authFetch('/api/admin/eligible/batch-from-waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ allocation: 1 }),

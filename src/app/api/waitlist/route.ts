@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSettings, addWaitlistUser, checkRequiredTasksCompleted } from '@/lib/db';
+import { getSettings, addWaitlistUser, getWaitlistUserByAddress, checkRequiredTasksCompleted } from '@/lib/db';
 import { isValidEvmAddress, normalizeAddress } from '@/lib/validation';
 import { verifyTurnstileToken, generateArcChallenge } from '@/lib/captcha';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  // Generate a fresh server-signed cryptographic challenge for anti-bot fallback
+export async function GET(request: NextRequest) {
   try {
+    const addressParam = request.nextUrl.searchParams.get('address');
+    if (addressParam) {
+      const normalized = normalizeAddress(addressParam);
+      if (!isValidEvmAddress(normalized)) {
+        return NextResponse.json({ registered: false, error: 'Invalid EVM address' }, { status: 400 });
+      }
+      const entry = getWaitlistUserByAddress(normalized);
+      if (entry) {
+        return NextResponse.json({ registered: true, entry });
+      }
+      return NextResponse.json({ registered: false });
+    }
+
+    // Generate a fresh server-signed cryptographic challenge for anti-bot fallback
     const challenge = generateArcChallenge();
     return NextResponse.json(challenge);
   } catch (error: any) {

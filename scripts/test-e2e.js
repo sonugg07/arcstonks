@@ -230,22 +230,36 @@ async function runTests() {
     { password: 'arcstonks@9888' }
   );
   assert(goodLogin.status === 200, 'Correct admin login returns 200');
+  assert(typeof goodLogin.data.token === 'string', 'Admin login returns Bearer token for session persistence');
+  const bearerToken = goodLogin.data.token;
+  const bearerHeader = { Authorization: `Bearer ${bearerToken}` };
 
   const cookies = goodLogin.headers['set-cookie'];
   assert(Boolean(cookies && cookies.length > 0), 'Auth cookie received');
   const authCookie = cookies[0].split(';')[0];
 
-  // Authorized stats
+  // Authorized stats using Bearer token
   const authStats = await request({
     hostname: 'localhost',
     port: 3000,
     path: '/api/admin/stats',
     method: 'GET',
-    headers: { Cookie: authCookie },
+    headers: bearerHeader,
   });
-  assert(authStats.status === 200, 'Authenticated stats returns 200');
+  assert(authStats.status === 200, 'Authenticated stats with Bearer token returns 200');
   assert(authStats.data.totalWaitlist >= 1, `Waitlist count is ${authStats.data.totalWaitlist}`);
   assert(authStats.data.totalEligible >= 5, `Eligible count is ${authStats.data.totalEligible}`);
+
+  // Test Waitlist Persistence on refresh (GET /api/waitlist?address=...)
+  console.log('\n4b. Testing Waitlist Status Persistence...');
+  const checkStatusBefore = await request({
+    hostname: 'localhost',
+    port: 3000,
+    path: `/api/waitlist?address=${testWallet}`,
+    method: 'GET',
+  });
+  assert(checkStatusBefore.status === 200, 'Status check for registered wallet returns 200');
+  assert(checkStatusBefore.data.registered === true, 'Registered wallet confirmed in DB for page refresh');
 
   // 5. Testing Waitlist CSV Export
   console.log('\n5. Testing Waitlist CSV Export (/api/admin/waitlist/export)...');
@@ -254,12 +268,44 @@ async function runTests() {
     port: 3000,
     path: '/api/admin/waitlist/export',
     method: 'GET',
-    headers: { Cookie: authCookie },
+    headers: bearerHeader,
   });
   assert(exportRes.status === 200, 'Export CSV returns 200');
   assert(exportRes.headers['content-type'].includes('text/csv'), 'Content-Type is text/csv');
   assert(typeof exportRes.data === 'string' && exportRes.data.startsWith('wallet_address'), 'CSV begins with wallet_address header');
   assert(exportRes.data.includes(testWallet), 'Exported CSV contains the submitted waitlist wallet');
+
+  // 5b. Testing Admin Deletion of Waitlist Entry & Post-Delete Status
+  console.log('\n5b. Testing Admin Deletion & Reset on Delete...');
+  const waitlistList = await request({
+    hostname: 'localhost',
+    port: 3000,
+    path: '/api/admin/waitlist',
+    method: 'GET',
+    headers: bearerHeader,
+  });
+  const testEntry = waitlistList.data.users.find(u => u.wallet_address.toLowerCase() === testWallet.toLowerCase());
+  assert(Boolean(testEntry), 'Found testWallet in admin waitlist entries');
+
+  if (testEntry) {
+    const deleteRes = await request({
+      hostname: 'localhost',
+      port: 3000,
+      path: `/api/admin/waitlist/${testEntry.id}`,
+      method: 'DELETE',
+      headers: bearerHeader,
+    });
+    assert(deleteRes.status === 200, 'Admin deleted waitlist entry with Bearer auth');
+
+    // Verify status check after deletion: should return registered: false
+    const checkStatusAfter = await request({
+      hostname: 'localhost',
+      port: 3000,
+      path: `/api/waitlist?address=${testWallet}`,
+      method: 'GET',
+    });
+    assert(checkStatusAfter.data.registered === false, 'Deleted wallet is no longer registered (resets form on next check)');
+  }
 
   // 6. Testing Manual Eligible Wallet Management & Immediate Checker Sync
   console.log('\n6. Testing Manual Add Eligible Wallet & Immediate Checker Sync...');
