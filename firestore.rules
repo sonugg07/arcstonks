@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: check if user is authenticated via Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: admin check (any authenticated Firebase user in the arcstonks project)
+    function isAdmin() {
+      return isAuthenticated();
+    }
+    
+    // site_settings: Publicly readable; Only admin can modify
+    match /site_settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // waitlist_tasks: Publicly readable; Only admin can create, update, or delete
+    match /waitlist_tasks/{taskId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // eligible_wallets: Publicly readable (required by wallet checker); Only admin can modify or import
+    match /eligible_wallets/{walletAddress} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // waitlist_users: Anyone can check their own wallet (get); Only admin can list all wallets (list)
+    match /waitlist_users/{walletAddress} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+    
+    // waitlist_task_completions: Public can record task verification; Admin can manage
+    match /waitlist_task_completions/{completionId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -10,13 +10,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const id = parseInt(params.id, 10);
-    if (isNaN(id)) {
+    const id = params.id;
+    if (!id || !id.trim()) {
       return NextResponse.json({ error: 'Invalid Task ID.' }, { status: 400 });
     }
 
     const body = await request.json();
-    const updated = updateTask(id, body);
+    const updated = await updateTask(id.trim(), body);
 
     if (updated) {
       return NextResponse.json({ success: true, message: 'Task updated successfully.' });
@@ -33,12 +33,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 
   try {
-    const id = parseInt(params.id, 10);
-    if (isNaN(id)) {
+    const id = params.id;
+    if (!id || !id.trim()) {
       return NextResponse.json({ error: 'Invalid Task ID.' }, { status: 400 });
     }
 
-    const deleted = deleteTask(id);
+    const deleted = await deleteTask(id.trim());
     if (deleted) {
       return NextResponse.json({ success: true, message: 'Task deleted successfully.' });
     }

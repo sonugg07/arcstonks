@@ -1,6 +1,3 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
 import {
   SiteSettings,
   WaitlistUser,
@@ -10,560 +7,175 @@ import {
   WaitlistTask,
   PublicTaskItem
 } from './types';
+import {
+  getSettingsFirestore,
+  updateSettingsFirestore,
+  getWaitlistUserByAddressFirestore,
+  addWaitlistUserFirestore,
+  getWaitlistUsersFirestore,
+  deleteWaitlistUserFirestore,
+  isWalletEligibleFirestore,
+  getEligibleWalletsFirestore,
+  addEligibleWalletFirestore,
+  updateEligibleWalletFirestore,
+  deleteEligibleWalletFirestore,
+  importEligibleWalletsFirestore,
+  getPublicTasksFirestore,
+  getAllTasksAdminFirestore,
+  createTaskFirestore,
+  updateTaskFirestore,
+  deleteTaskFirestore,
+  verifyTaskCompletionFirestore,
+  checkRequiredTasksCompletedFirestore,
+  isProofUsedByAnotherWalletFirestore,
+  getAdminStatsFirestore,
+  COLLECTIONS,
+} from './firestore';
+import { getFirebaseDb } from './firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { normalizeAddress, isValidEvmAddress } from './validation';
-
-function getDatabasePath(): string {
-  if (process.env.DB_PATH) {
-    return process.env.DB_PATH;
-  }
-  // Detect serverless environment (Vercel, AWS Lambda, Netlify)
-  const isServerless =
-    process.env.VERCEL === '1' ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
-    process.env.LAMBDA_TASK_ROOT !== undefined ||
-    Boolean(process.env.NETLIFY);
-
-  if (isServerless) {
-    const tmpDir = process.env.TMPDIR || '/tmp';
-    return path.join(tmpDir, 'arcstonks.db');
-  }
-
-  return path.join(process.cwd(), 'arcstonks.db');
-}
-
-// Global database instance with WAL mode for high concurrency
-let db: Database.Database;
-
-function getDb(): Database.Database {
-  if (!db) {
-    const isServerless =
-      process.env.VERCEL === '1' ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
-      process.env.LAMBDA_TASK_ROOT !== undefined ||
-      Boolean(process.env.NETLIFY);
-
-    let dbPath = getDatabasePath();
-    try {
-      const dbDir = path.dirname(dbPath);
-      if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
-      }
-
-      // If running on serverless and target db does not exist, copy bundled root db
-      if (isServerless && !fs.existsSync(dbPath)) {
-        const rootDbPath = path.join(process.cwd(), 'arcstonks.db');
-        if (fs.existsSync(rootDbPath)) {
-          try {
-            fs.copyFileSync(rootDbPath, dbPath);
-          } catch (copyErr) {
-            console.warn('Could not copy bundled arcstonks.db:', copyErr);
-          }
-        }
-      }
-
-      db = new Database(dbPath);
-    } catch (err: any) {
-      console.warn(`Could not open database at ${dbPath} (${err.message}). Trying fallback to /tmp/arcstonks.db...`);
-      try {
-        const fallbackPath = path.join('/tmp', 'arcstonks.db');
-        const fallbackDir = path.dirname(fallbackPath);
-        if (!fs.existsSync(fallbackDir)) {
-          fs.mkdirSync(fallbackDir, { recursive: true });
-        }
-        db = new Database(fallbackPath);
-      } catch (fallbackErr: any) {
-        console.warn(`Fallback to /tmp failed (${fallbackErr.message}). Using in-memory database as last resort.`);
-        db = new Database(':memory:');
-      }
-    }
-
-    if (isServerless) {
-      db.pragma('journal_mode = DELETE');
-    } else {
-      db.pragma('journal_mode = WAL');
-    }
-    db.pragma('synchronous = NORMAL');
-    initSchema();
-  }
-  return db;
-}
-
-function initSchema() {
-  const database = db;
-
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS schema_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS site_settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      waitlist_enabled INTEGER NOT NULL DEFAULT 1,
-      checker_enabled INTEGER NOT NULL DEFAULT 1,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS waitlist_users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      wallet_address TEXT UNIQUE NOT NULL COLLATE NOCASE,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      ip_hash TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_waitlist_address ON waitlist_users(wallet_address);
-
-    CREATE TABLE IF NOT EXISTS eligible_wallets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      wallet_address TEXT UNIQUE NOT NULL COLLATE NOCASE,
-      allocation INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_eligible_address ON eligible_wallets(wallet_address);
-
-    -- Community Social Tasks
-    CREATE TABLE IF NOT EXISTS waitlist_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      type TEXT NOT NULL,
-      url TEXT NOT NULL,
-      required INTEGER NOT NULL DEFAULT 1,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      display_order INTEGER NOT NULL DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Task Completions per Wallet Address
-    CREATE TABLE IF NOT EXISTS waitlist_task_completions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      wallet_address TEXT NOT NULL COLLATE NOCASE,
-      task_id INTEGER NOT NULL REFERENCES waitlist_tasks(id) ON DELETE CASCADE,
-      status TEXT NOT NULL DEFAULT 'completed',
-      verified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(wallet_address, task_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_task_comp_wallet ON waitlist_task_completions(wallet_address);
-  `);
-
-  // Schema migrations for proof_value and x_handle
-  try {
-    database.exec('ALTER TABLE waitlist_users ADD COLUMN x_handle TEXT;');
-  } catch {}
-
-  try {
-    database.exec('ALTER TABLE waitlist_task_completions ADD COLUMN proof_value TEXT;');
-  } catch {}
-
-  try {
-    database.exec('CREATE INDEX IF NOT EXISTS idx_task_comp_proof ON waitlist_task_completions(proof_value, task_id);');
-  } catch {}
-
-  // Migrate legacy, dummy and stale task URLs to x.com/arcstonks
-  try {
-    database.exec("UPDATE waitlist_tasks SET url = 'https://x.com/arcstonks' WHERE url LIKE '%123456789%' OR url LIKE '%bytewave01%' OR url LIKE '%twitter.com%';");
-  } catch {}
-
-  // Ensure default site_settings exists
-  const existing = database.prepare('SELECT id FROM site_settings WHERE id = 1').get();
-  if (!existing) {
-    database.prepare(`
-      INSERT INTO site_settings (id, waitlist_enabled, checker_enabled, updated_at)
-      VALUES (1, 1, 1, CURRENT_TIMESTAMP)
-    `).run();
-  }
-
-  // Check if one-time bootstrap seed was already applied (guarantees deleted records are never recreated)
-  const seedApplied = database.prepare("SELECT value FROM schema_meta WHERE key = 'initial_seed_completed'").get() as { value: string } | undefined;
-
-  if (!seedApplied) {
-    // Seed default social tasks on initial system bootstrap only
-    const taskCount = database.prepare('SELECT COUNT(*) as count FROM waitlist_tasks').get() as { count: number };
-    if (taskCount.count === 0) {
-      const defaultTasks = [
-        {
-          title: 'Follow ArcStonks on X',
-          type: 'Follow',
-          url: 'https://x.com/arcstonks',
-          required: 1,
-          enabled: 1,
-          display_order: 1,
-        },
-        {
-          title: 'Like our announcement',
-          type: 'Like',
-          url: 'https://x.com/arcstonks',
-          required: 1,
-          enabled: 1,
-          display_order: 2,
-        },
-        {
-          title: 'Repost our announcement',
-          type: 'Repost',
-          url: 'https://x.com/arcstonks',
-          required: 1,
-          enabled: 1,
-          display_order: 3,
-        },
-        {
-          title: 'Comment on our announcement',
-          type: 'Comment',
-          url: 'https://x.com/arcstonks',
-          required: 1,
-          enabled: 1,
-          display_order: 4,
-        },
-      ];
-
-      const insertTask = database.prepare(`
-        INSERT INTO waitlist_tasks (title, type, url, required, enabled, display_order)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
-      database.transaction(() => {
-        for (const t of defaultTasks) {
-          insertTask.run(t.title, t.type, t.url, t.required, t.enabled, t.display_order);
-        }
-      })();
-    }
-
-    // Seed default eligible wallets on initial system bootstrap only
-    const eligibleCount = database.prepare('SELECT COUNT(*) as count FROM eligible_wallets').get() as { count: number };
-    if (eligibleCount.count === 0) {
-      const defaultEligible = [
-        { address: '0x71C63397e3E79401736b43Fa9FE4B952E8C0409A', allocation: 2 },
-        { address: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30', allocation: 1 },
-        { address: '0xbDA5747bFD65F08deb54cb465eB87D40e51B197E', allocation: 3 },
-        { address: '0xdD2FD4581271e230360230F9337D5c0430Bf44C0', allocation: 1 },
-        { address: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', allocation: 2 },
-      ];
-
-      const insertEligible = database.prepare(`
-        INSERT INTO eligible_wallets (wallet_address, allocation, status)
-        VALUES (?, ?, 'active')
-      `);
-
-      database.transaction(() => {
-        for (const w of defaultEligible) {
-          insertEligible.run(normalizeAddress(w.address), w.allocation);
-        }
-      })();
-    }
-
-    // Permanently record that initial bootstrap is done: NEVER recreate deleted tasks or wallets
-    database.prepare("INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('initial_seed_completed', '1')").run();
-  }
-}
 
 // -------------------------------------------------------------
 // Site Settings
 // -------------------------------------------------------------
 
-export function getSettings(): { waitlist_enabled: boolean; checker_enabled: boolean; updated_at: string } {
-  const d = getDb();
-  const row = d.prepare('SELECT waitlist_enabled, checker_enabled, updated_at FROM site_settings WHERE id = 1').get() as any;
-  if (!row) {
-    return { waitlist_enabled: true, checker_enabled: true, updated_at: new Date().toISOString() };
-  }
-  return {
-    waitlist_enabled: Boolean(row.waitlist_enabled),
-    checker_enabled: Boolean(row.checker_enabled),
-    updated_at: row.updated_at,
-  };
+export async function getSettings(): Promise<{ waitlist_enabled: boolean; checker_enabled: boolean; updated_at: string }> {
+  return getSettingsFirestore();
 }
 
-export function updateSettings(waitlist_enabled?: boolean, checker_enabled?: boolean): { waitlist_enabled: boolean; checker_enabled: boolean } {
-  const d = getDb();
-  const current = getSettings();
-  const newWaitlist = waitlist_enabled !== undefined ? (waitlist_enabled ? 1 : 0) : (current.waitlist_enabled ? 1 : 0);
-  const newChecker = checker_enabled !== undefined ? (checker_enabled ? 1 : 0) : (current.checker_enabled ? 1 : 0);
-
-  d.prepare(`
-    UPDATE site_settings
-    SET waitlist_enabled = ?, checker_enabled = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = 1
-  `).run(newWaitlist, newChecker);
-
-  return {
-    waitlist_enabled: Boolean(newWaitlist),
-    checker_enabled: Boolean(newChecker),
-  };
+export async function updateSettings(
+  waitlist_enabled?: boolean,
+  checker_enabled?: boolean
+): Promise<{ waitlist_enabled: boolean; checker_enabled: boolean }> {
+  return updateSettingsFirestore(waitlist_enabled, checker_enabled);
 }
 
 // -------------------------------------------------------------
 // Waitlist Users
 // -------------------------------------------------------------
 
-export function getWaitlistUserByAddress(rawAddress: string): WaitlistUser | undefined {
-  const d = getDb();
-  const address = normalizeAddress(rawAddress);
-  return d.prepare('SELECT * FROM waitlist_users WHERE wallet_address = ?').get(address) as WaitlistUser | undefined;
+export async function getWaitlistUserByAddress(rawAddress: string): Promise<WaitlistUser | null> {
+  return getWaitlistUserByAddressFirestore(rawAddress);
 }
 
-export function addWaitlistUser(rawAddress: string, ip_hash?: string, xHandle?: string): { success: boolean; alreadyExists: boolean; entry?: WaitlistUser } {
-  const d = getDb();
-  const address = normalizeAddress(rawAddress);
-
-  const existing = d.prepare('SELECT * FROM waitlist_users WHERE wallet_address = ?').get(address) as WaitlistUser | undefined;
-  if (existing) {
-    if (xHandle && !existing.x_handle) {
-      d.prepare('UPDATE waitlist_users SET x_handle = ? WHERE id = ?').run(xHandle.trim(), existing.id);
-      existing.x_handle = xHandle.trim();
-    }
-    return { success: true, alreadyExists: true, entry: existing };
-  }
-
-  const cleanHandle = xHandle ? xHandle.trim() : null;
-  const result = d.prepare(`
-    INSERT INTO waitlist_users (wallet_address, ip_hash, x_handle, created_at)
-    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-  `).run(address, ip_hash || null, cleanHandle);
-
-  const entry = d.prepare('SELECT * FROM waitlist_users WHERE id = ?').get(result.lastInsertRowid) as WaitlistUser;
-  return { success: true, alreadyExists: false, entry };
+export async function addWaitlistUser(
+  rawAddress: string,
+  ip_hash?: string,
+  xHandle?: string
+): Promise<{ success: boolean; alreadyExists: boolean; entry?: WaitlistUser }> {
+  return addWaitlistUserFirestore(rawAddress, ip_hash, xHandle);
 }
 
-export function getWaitlistUsers(search = '', limit = 50, offset = 0): { users: WaitlistUser[]; total: number } {
-  const d = getDb();
-  const searchTerm = `%${search.trim().toLowerCase()}%`;
+export async function getWaitlistUsers(
+  search = '',
+  limit = 50,
+  offset = 0
+): Promise<{ users: WaitlistUser[]; total: number }> {
+  return getWaitlistUsersFirestore(search, limit, offset);
+}
 
-  if (search.trim()) {
-    const totalRow = d.prepare('SELECT COUNT(*) as count FROM waitlist_users WHERE wallet_address LIKE ? OR x_handle LIKE ?').get(searchTerm, searchTerm) as { count: number };
-    const users = d.prepare(`
-      SELECT * FROM waitlist_users
-      WHERE wallet_address LIKE ? OR x_handle LIKE ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `).all(searchTerm, searchTerm, limit, offset) as WaitlistUser[];
-    return { users, total: totalRow.count };
-  } else {
-    const totalRow = d.prepare('SELECT COUNT(*) as count FROM waitlist_users').get() as { count: number };
-    const users = d.prepare(`
-      SELECT * FROM waitlist_users
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `).all(limit, offset) as WaitlistUser[];
-    return { users, total: totalRow.count };
+export async function getAllWaitlistAddressesForExport(): Promise<string[]> {
+  try {
+    const db = getFirebaseDb();
+    const snap = await getDocs(collection(db, COLLECTIONS.WAITLIST));
+    const list: string[] = [];
+    snap.forEach(d => {
+      const data = d.data();
+      list.push(data.wallet_address || d.id);
+    });
+    return list;
+  } catch (err) {
+    console.error('Error fetching waitlist addresses for export:', err);
+    return [];
   }
 }
 
-export function getAllWaitlistAddressesForExport(): string[] {
-  const d = getDb();
-  const rows = d.prepare('SELECT wallet_address FROM waitlist_users ORDER BY created_at ASC').all() as { wallet_address: string }[];
-  return rows.map(r => r.wallet_address);
+export async function getAllWaitlistEntriesForExport(): Promise<{ wallet_address: string; x_handle?: string; created_at: string }[]> {
+  try {
+    const db = getFirebaseDb();
+    const snap = await getDocs(collection(db, COLLECTIONS.WAITLIST));
+    const list: { wallet_address: string; x_handle?: string; created_at: string }[] = [];
+    snap.forEach(d => {
+      const data = d.data();
+      list.push({
+        wallet_address: data.wallet_address || d.id,
+        x_handle: data.x_handle || undefined,
+        created_at: data.created_at || '',
+      });
+    });
+    return list;
+  } catch (err) {
+    console.error('Error fetching waitlist entries for export:', err);
+    return [];
+  }
 }
 
-export function getAllWaitlistEntriesForExport(): { wallet_address: string; x_handle?: string; created_at: string }[] {
-  const d = getDb();
-  return d.prepare(`
-    SELECT wallet_address, x_handle, created_at
-    FROM waitlist_users
-    ORDER BY created_at ASC
-  `).all() as { wallet_address: string; x_handle?: string; created_at: string }[];
-}
-
-export function deleteWaitlistUser(id: number): boolean {
-  const d = getDb();
-  const result = d.prepare('DELETE FROM waitlist_users WHERE id = ?').run(id);
-  return result.changes > 0;
+export async function deleteWaitlistUser(id: string | number): Promise<boolean> {
+  return deleteWaitlistUserFirestore(String(id));
 }
 
 // -------------------------------------------------------------
 // Community Tasks System
 // -------------------------------------------------------------
 
-/**
- * Returns public tasks that are enabled, optionally enriched with completion status for a given wallet
- */
-export function getPublicTasks(rawAddress?: string): PublicTaskItem[] {
-  const d = getDb();
-  const tasks = d.prepare(`
-    SELECT id, title, type, url, required, enabled, display_order
-    FROM waitlist_tasks
-    WHERE enabled = 1
-    ORDER BY display_order ASC, id ASC
-  `).all() as WaitlistTask[];
-
-  let completedIds = new Set<number>();
-  let completionMap = new Map<number, string>();
-  let proofMap = new Map<number, string>();
-
-  if (rawAddress && isValidEvmAddress(rawAddress)) {
-    const address = normalizeAddress(rawAddress);
-    const rows = d.prepare(`
-      SELECT task_id, verified_at, proof_value
-      FROM waitlist_task_completions
-      WHERE wallet_address = ? AND status = 'completed'
-    `).all(address) as { task_id: number; verified_at: string; proof_value?: string }[];
-
-    for (const r of rows) {
-      completedIds.add(r.task_id);
-      completionMap.set(r.task_id, r.verified_at);
-      if (r.proof_value) {
-        proofMap.set(r.task_id, r.proof_value);
-      }
-    }
-  }
-
-  return tasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    type: t.type,
-    url: t.url,
-    required: Boolean(t.required),
-    enabled: Boolean(t.enabled),
-    display_order: t.display_order,
-    completed: completedIds.has(t.id),
-    verified_at: completionMap.get(t.id),
-    proof_value: proofMap.get(t.id),
-  }));
+export async function getPublicTasks(rawAddress?: string): Promise<PublicTaskItem[]> {
+  return getPublicTasksFirestore(rawAddress);
 }
 
-/**
- * Checks if a social handle/proof is already used by another wallet for the same task
- */
-export function isProofUsedByAnotherWallet(proofValue: string, taskId: number, currentAddress: string): boolean {
-  const d = getDb();
-  const clean = proofValue.trim().toLowerCase().replace(/^@/, '');
-  if (!clean) return false;
-
-  const currentNormalized = normalizeAddress(currentAddress);
-
-  const row = d.prepare(`
-    SELECT wallet_address FROM waitlist_task_completions
-    WHERE task_id = ? 
-      AND LOWER(REPLACE(proof_value, '@', '')) = ?
-      AND wallet_address != ?
-      AND status = 'completed'
-    LIMIT 1
-  `).get(taskId, clean, currentNormalized) as { wallet_address: string } | undefined;
-
-  return !!row;
+export async function isProofUsedByAnotherWallet(
+  proofValue: string,
+  taskId: string | number,
+  currentAddress: string
+): Promise<boolean> {
+  return isProofUsedByAnotherWalletFirestore(proofValue, taskId, currentAddress);
 }
 
-/**
- * Record a user task completion with proof (X handle / comment url)
- */
-export function recordTaskCompletion(
-  rawAddress: string, 
-  taskId: number, 
+export async function recordTaskCompletion(
+  rawAddress: string,
+  taskId: string | number,
   proofValue?: string
-): { success: boolean; error?: string; verifiedAt?: string; proofValue?: string } {
-  const d = getDb();
-  const address = normalizeAddress(rawAddress);
-
-  if (!isValidEvmAddress(address)) {
-    return { success: false, error: 'Invalid EVM address format' };
-  }
-
-  const task = d.prepare('SELECT id, enabled FROM waitlist_tasks WHERE id = ?').get(taskId) as WaitlistTask | undefined;
-  if (!task || !task.enabled) {
-    return { success: false, error: 'Task not found or disabled' };
-  }
-
-  const cleanProof = proofValue ? proofValue.trim() : null;
-
-  d.prepare(`
-    INSERT INTO waitlist_task_completions (wallet_address, task_id, status, proof_value, verified_at, created_at)
-    VALUES (?, ?, 'completed', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT(wallet_address, task_id) DO UPDATE SET
-      status = 'completed',
-      proof_value = coalesce(excluded.proof_value, waitlist_task_completions.proof_value),
-      verified_at = CURRENT_TIMESTAMP
-  `).run(address, taskId, cleanProof);
-
-  const completion = d.prepare(`
-    SELECT verified_at, proof_value FROM waitlist_task_completions
-    WHERE wallet_address = ? AND task_id = ?
-  `).get(address, taskId) as { verified_at: string; proof_value?: string };
-
-  return { 
-    success: true, 
-    verifiedAt: completion.verified_at, 
-    proofValue: completion.proof_value || cleanProof || undefined 
-  };
+): Promise<{ success: boolean; error?: string; verifiedAt?: string; proofValue?: string }> {
+  return verifyTaskCompletionFirestore(rawAddress, taskId, proofValue);
 }
 
-/**
- * Validates that all currently enabled & required tasks have been completed by the wallet
- */
-export function checkRequiredTasksCompleted(rawAddress: string): { allCompleted: boolean; missingTasks: string[]; requiredTotal: number; completedRequired: number } {
-  const d = getDb();
-  const address = normalizeAddress(rawAddress);
-
-  const requiredTasks = d.prepare(`
-    SELECT id, title
-    FROM waitlist_tasks
-    WHERE enabled = 1 AND required = 1
-    ORDER BY display_order ASC
-  `).all() as { id: number; title: string }[];
-
-  if (requiredTasks.length === 0) {
-    return { allCompleted: true, missingTasks: [], requiredTotal: 0, completedRequired: 0 };
-  }
-
-  const completed = d.prepare(`
-    SELECT task_id
-    FROM waitlist_task_completions
-    WHERE wallet_address = ? AND status = 'completed'
-  `).all(address) as { task_id: number }[];
-
-  const completedSet = new Set(completed.map(c => c.task_id));
-  const missingTasks: string[] = [];
-  let completedRequired = 0;
-
-  for (const t of requiredTasks) {
-    if (completedSet.has(t.id)) {
-      completedRequired++;
-    } else {
-      missingTasks.push(t.title);
-    }
-  }
-
-  return {
-    allCompleted: missingTasks.length === 0,
-    missingTasks,
-    requiredTotal: requiredTasks.length,
-    completedRequired,
-  };
+export async function checkRequiredTasksCompleted(
+  rawAddress: string
+): Promise<{ allCompleted: boolean; missingTasks: string[]; requiredTotal: number; completedRequired: number }> {
+  return checkRequiredTasksCompletedFirestore(rawAddress);
 }
 
 // -------------------------------------------------------------
 // Admin Task Management
 // -------------------------------------------------------------
 
-export function getAllTasksAdmin(): WaitlistTask[] {
-  const d = getDb();
-  const rows = d.prepare(`
-    SELECT 
-      t.*,
-      COUNT(c.id) as completionCount
-    FROM waitlist_tasks t
-    LEFT JOIN waitlist_task_completions c ON t.id = c.task_id AND c.status = 'completed'
-    GROUP BY t.id
-    ORDER BY t.display_order ASC, t.id ASC
-  `).all() as any[];
-
-  return rows.map(r => ({
-    ...r,
-    completionCount: r.completionCount || 0,
-  }));
+export async function getAllTasksAdmin(): Promise<WaitlistTask[]> {
+  return getAllTasksAdminFirestore();
 }
 
-export function getTaskCompletions(taskId: number, limit = 50): { id: number; wallet_address: string; proof_value?: string; verified_at: string }[] {
-  const d = getDb();
-  return d.prepare(`
-    SELECT id, wallet_address, proof_value, verified_at
-    FROM waitlist_task_completions
-    WHERE task_id = ? AND status = 'completed'
-    ORDER BY verified_at DESC
-    LIMIT ?
-  `).all(taskId, limit) as { id: number; wallet_address: string; proof_value?: string; verified_at: string }[];
+export async function getTaskCompletions(
+  taskId: string | number,
+  limit = 50
+): Promise<{ id: string | number; wallet_address: string; proof_value?: string; verified_at: string }[]> {
+  try {
+    const db = getFirebaseDb();
+    const compCol = collection(db, COLLECTIONS.COMPLETIONS);
+    const q = query(compCol, where('task_id', '==', String(taskId)));
+    const snap = await getDocs(q);
+    const list: { id: string | number; wallet_address: string; proof_value?: string; verified_at: string }[] = [];
+    snap.forEach(d => {
+      const data = d.data();
+      list.push({
+        id: d.id,
+        wallet_address: data.wallet_address || '',
+        proof_value: data.proof_value || undefined,
+        verified_at: data.verified_at || '',
+      });
+    });
+    return list.slice(0, limit);
+  } catch (err) {
+    console.error('Error getting task completions:', err);
+    return [];
+  }
 }
 
 export function normalizeTaskUrl(rawUrl?: string): string {
@@ -572,225 +184,92 @@ export function normalizeTaskUrl(rawUrl?: string): string {
   if (!/^https?:\/\//i.test(url)) {
     url = `https://${url}`;
   }
+  if (url.includes('123456789') || url.includes('bytewave01') || url.includes('twitter.com/ArcStonks')) {
+    return 'https://x.com/arcstonks';
+  }
   return url;
 }
 
-export function createTask(data: {
+export async function createTask(data: {
   title: string;
   type: string;
   url: string;
   required?: boolean;
   enabled?: boolean;
   display_order?: number;
-}): WaitlistTask {
-  const d = getDb();
-  const cleanUrl = normalizeTaskUrl(data.url);
-  const result = d.prepare(`
-    INSERT INTO waitlist_tasks (title, type, url, required, enabled, display_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-  `).run(
-    data.title.trim(),
-    data.type.trim(),
-    cleanUrl,
-    data.required ? 1 : 0,
-    data.enabled !== undefined ? (data.enabled ? 1 : 0) : 1,
-    data.display_order !== undefined ? data.display_order : 0
-  );
-
-  return d.prepare('SELECT * FROM waitlist_tasks WHERE id = ?').get(result.lastInsertRowid) as WaitlistTask;
+}): Promise<WaitlistTask> {
+  return createTaskFirestore(data);
 }
 
-export function updateTask(id: number, data: Partial<{
-  title: string;
-  type: string;
-  url: string;
-  required: boolean;
-  enabled: boolean;
-  display_order: number;
-}>): boolean {
-  const d = getDb();
-  const existing = d.prepare('SELECT * FROM waitlist_tasks WHERE id = ?').get(id) as WaitlistTask | undefined;
-  if (!existing) return false;
-
-  const newTitle = data.title !== undefined ? data.title.trim() : existing.title;
-  const newType = data.type !== undefined ? data.type.trim() : existing.type;
-  const newUrl = data.url !== undefined ? normalizeTaskUrl(data.url) : existing.url;
-  const newRequired = data.required !== undefined ? (data.required ? 1 : 0) : existing.required;
-  const newEnabled = data.enabled !== undefined ? (data.enabled ? 1 : 0) : existing.enabled;
-  const newOrder = data.display_order !== undefined ? data.display_order : existing.display_order;
-
-  const result = d.prepare(`
-    UPDATE waitlist_tasks
-    SET title = ?, type = ?, url = ?, required = ?, enabled = ?, display_order = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).run(newTitle, newType, newUrl, newRequired, newEnabled, newOrder, id);
-
-  return result.changes > 0;
+export async function updateTask(
+  id: string | number,
+  data: Partial<WaitlistTask>
+): Promise<boolean> {
+  return updateTaskFirestore(id, data);
 }
 
-export function deleteTask(id: number): boolean {
-  const d = getDb();
-  d.prepare('DELETE FROM waitlist_task_completions WHERE task_id = ?').run(id);
-  const result = d.prepare('DELETE FROM waitlist_tasks WHERE id = ?').run(id);
-  return result.changes > 0;
+export async function deleteTask(id: string | number): Promise<boolean> {
+  return deleteTaskFirestore(id);
 }
 
 // -------------------------------------------------------------
 // Eligible / Whitelist Wallets
 // -------------------------------------------------------------
 
-export function checkWalletEligibility(rawAddress: string): { eligible: boolean; allocation?: number; status?: string } {
-  const d = getDb();
-  const address = normalizeAddress(rawAddress);
-
-  const row = d.prepare(`
-    SELECT allocation, status
-    FROM eligible_wallets
-    WHERE wallet_address = ? AND status = 'active'
-  `).get(address) as { allocation: number; status: string } | undefined;
-
-  if (row) {
-    return { eligible: true, allocation: row.allocation, status: row.status };
-  }
-  return { eligible: false };
-}
-
-export function getEligibleWallets(search = '', limit = 50, offset = 0): { wallets: EligibleWallet[]; total: number } {
-  const d = getDb();
-  const searchTerm = `%${search.trim().toLowerCase()}%`;
-
-  if (search.trim()) {
-    const totalRow = d.prepare('SELECT COUNT(*) as count FROM eligible_wallets WHERE wallet_address LIKE ?').get(searchTerm) as { count: number };
-    const wallets = d.prepare(`
-      SELECT * FROM eligible_wallets
-      WHERE wallet_address LIKE ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `).all(searchTerm, limit, offset) as EligibleWallet[];
-    return { wallets, total: totalRow.count };
-  } else {
-    const totalRow = d.prepare('SELECT COUNT(*) as count FROM eligible_wallets').get() as { count: number };
-    const wallets = d.prepare(`
-      SELECT * FROM eligible_wallets
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `).all(limit, offset) as EligibleWallet[];
-    return { wallets, total: totalRow.count };
-  }
-}
-
-export function addEligibleWallet(rawAddress: string, allocation = 1): { success: boolean; error?: string; wallet?: EligibleWallet } {
-  const d = getDb();
-  const address = normalizeAddress(rawAddress);
-
-  if (!isValidEvmAddress(address)) {
-    return { success: false, error: 'Invalid EVM wallet address format' };
-  }
-
-  const existing = d.prepare('SELECT id FROM eligible_wallets WHERE wallet_address = ?').get(address);
-  if (existing) {
-    return { success: false, error: 'Wallet is already in eligible list' };
-  }
-
-  const result = d.prepare(`
-    INSERT INTO eligible_wallets (wallet_address, allocation, status, created_at, updated_at)
-    VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-  `).run(address, Math.max(1, allocation));
-
-  const wallet = d.prepare('SELECT * FROM eligible_wallets WHERE id = ?').get(result.lastInsertRowid) as EligibleWallet;
-  return { success: true, wallet };
-}
-
-export function updateEligibleWallet(id: number, allocation: number, status = 'active'): boolean {
-  const d = getDb();
-  const result = d.prepare(`
-    UPDATE eligible_wallets
-    SET allocation = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).run(Math.max(1, allocation), status, id);
-  return result.changes > 0;
-}
-
-export function deleteEligibleWallet(id: number): boolean {
-  const d = getDb();
-  const result = d.prepare('DELETE FROM eligible_wallets WHERE id = ?').run(id);
-  return result.changes > 0;
-}
-
-export function batchImportEligibleWallets(records: { rawAddress: string; allocation?: number }[]): ImportResult {
-  const d = getDb();
-  const result: ImportResult = {
-    totalProcessed: records.length,
-    successfulCount: 0,
-    invalidCount: 0,
-    duplicateCount: 0,
-    successful: [],
-    invalid: [],
-    duplicates: [],
+export async function checkWalletEligibility(
+  rawAddress: string
+): Promise<{ eligible: boolean; allocation?: number; status?: string }> {
+  const result = await isWalletEligibleFirestore(rawAddress);
+  return {
+    eligible: result.eligible,
+    allocation: result.allocation,
+    status: result.status,
   };
+}
 
-  const checkStmt = d.prepare('SELECT id FROM eligible_wallets WHERE wallet_address = ?');
-  const insertStmt = d.prepare(`
-    INSERT INTO eligible_wallets (wallet_address, allocation, status, created_at, updated_at)
-    VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-  `);
+export async function getEligibleWallets(
+  search = '',
+  limit = 50,
+  offset = 0
+): Promise<{ wallets: EligibleWallet[]; total: number }> {
+  return getEligibleWalletsFirestore(search, limit, offset);
+}
 
-  const seenInBatch = new Set<string>();
+export async function addEligibleWallet(
+  rawAddress: string,
+  allocation = 1
+): Promise<{ success: boolean; error?: string; wallet?: EligibleWallet }> {
+  try {
+    const wallet = await addEligibleWalletFirestore(rawAddress, allocation);
+    return { success: true, wallet };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
 
-  const transaction = d.transaction(() => {
-    for (const item of records) {
-      const address = normalizeAddress(item.rawAddress);
+export async function updateEligibleWallet(
+  id: string | number,
+  allocation: number,
+  status = 'active'
+): Promise<boolean> {
+  return updateEligibleWalletFirestore(String(id), allocation, status);
+}
 
-      if (!isValidEvmAddress(address)) {
-        result.invalidCount++;
-        result.invalid.push({ address: item.rawAddress, reason: 'Invalid 0x EVM format' });
-        continue;
-      }
+export async function deleteEligibleWallet(id: string | number): Promise<boolean> {
+  return deleteEligibleWalletFirestore(String(id));
+}
 
-      if (seenInBatch.has(address)) {
-        result.duplicateCount++;
-        result.duplicates.push(address);
-        continue;
-      }
-      seenInBatch.add(address);
-
-      const existing = checkStmt.get(address);
-      if (existing) {
-        result.duplicateCount++;
-        result.duplicates.push(address);
-        continue;
-      }
-
-      const alloc = Math.max(1, item.allocation || 1);
-      insertStmt.run(address, alloc);
-      result.successfulCount++;
-      result.successful.push({ address, allocation: alloc });
-    }
-  });
-
-  transaction();
-  return result;
+export async function batchImportEligibleWallets(
+  records: { rawAddress: string; allocation?: number }[]
+): Promise<ImportResult> {
+  const formatted = records.map(r => ({ address: r.rawAddress, allocation: r.allocation }));
+  return importEligibleWalletsFirestore(formatted);
 }
 
 // -------------------------------------------------------------
 // Admin Stats
 // -------------------------------------------------------------
 
-export function getAdminStats(): AdminStats {
-  const d = getDb();
-  const waitlistCount = (d.prepare('SELECT COUNT(*) as count FROM waitlist_users').get() as any).count || 0;
-  const eligibleRow = d.prepare('SELECT COUNT(*) as count, COALESCE(SUM(allocation), 0) as totalAlloc FROM eligible_wallets').get() as any;
-  const taskCount = (d.prepare('SELECT COUNT(*) as count FROM waitlist_tasks').get() as any).count || 0;
-  const completionCount = (d.prepare("SELECT COUNT(*) as count FROM waitlist_task_completions WHERE status = 'completed'").get() as any).count || 0;
-  const settings = getSettings();
-
-  return {
-    totalWaitlist: waitlistCount,
-    totalEligible: eligibleRow.count || 0,
-    totalAllocation: eligibleRow.totalAlloc || 0,
-    waitlistEnabled: settings.waitlist_enabled,
-    checkerEnabled: settings.checker_enabled,
-    totalTasks: taskCount,
-    totalCompletions: completionCount,
-  };
+export async function getAdminStats(): Promise<AdminStats> {
+  return getAdminStatsFirestore();
 }

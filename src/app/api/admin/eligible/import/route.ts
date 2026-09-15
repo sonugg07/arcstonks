@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No wallet entries found in CSV' }, { status: 400 });
     }
 
-    const result = batchImportEligibleWallets(recordsToProcess);
+    const result = await batchImportEligibleWallets(recordsToProcess);
 
     return NextResponse.json({
       success: true,

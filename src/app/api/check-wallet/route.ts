@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const settings = getSettings();
+    const settings = await getSettings();
     if (!settings.checker_enabled) {
       return NextResponse.json(
         { error: 'Wallet Checker is currently unavailable.' },
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = checkWalletEligibility(normalized);
+    const result = await checkWalletEligibility(normalized);
 
     if (result.eligible) {
       return NextResponse.json({

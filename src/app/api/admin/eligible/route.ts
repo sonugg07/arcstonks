@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    const result = getEligibleWallets(search, limit, offset);
+    const result = await getEligibleWallets(search, limit, offset);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const allocNumber = parseInt(allocation, 10);
     const parsedAlloc = isNaN(allocNumber) || allocNumber < 1 ? 1 : allocNumber;
 
-    const result = addEligibleWallet(normalized, parsedAlloc);
+    const result = await addEligibleWallet(normalized, parsedAlloc);
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'Failed to add wallet' }, { status: 400 });
     }

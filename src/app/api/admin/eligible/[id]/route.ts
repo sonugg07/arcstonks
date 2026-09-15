@@ -10,8 +10,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const id = parseInt(params.id, 10);
-    if (isNaN(id)) {
+    const id = params.id;
+    if (!id || !id.trim()) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
@@ -21,7 +21,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const allocNumber = parseInt(allocation, 10);
     const parsedAlloc = isNaN(allocNumber) || allocNumber < 1 ? 1 : allocNumber;
 
-    const updated = updateEligibleWallet(id, parsedAlloc, status || 'active');
+    const updated = await updateEligibleWallet(id.trim(), parsedAlloc, status || 'active');
     if (updated) {
       return NextResponse.json({ success: true, message: 'Wallet updated.' });
     }
@@ -37,12 +37,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 
   try {
-    const id = parseInt(params.id, 10);
-    if (isNaN(id)) {
+    const id = params.id;
+    if (!id || !id.trim()) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
-    const deleted = deleteEligibleWallet(id);
+    const deleted = await deleteEligibleWallet(id.trim());
     if (deleted) {
       return NextResponse.json({ success: true, message: 'Wallet deleted.' });
     }

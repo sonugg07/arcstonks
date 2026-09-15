@@ -304,7 +304,7 @@ export default function AdminPage() {
   };
 
   // Delete Task
-  const handleDeleteTask = async (id: number) => {
+  const handleDeleteTask = async (id: string | number) => {
     if (!confirm('Are you sure you want to delete this community task?')) return;
 
     try {
@@ -393,7 +393,7 @@ export default function AdminPage() {
   };
 
   // Delete waitlist user
-  const handleDeleteWaitlist = async (id: number) => {
+  const handleDeleteWaitlist = async (id: string | number) => {
     if (!confirm('Are you sure you want to delete this waitlist submission?')) return;
 
     try {
@@ -470,7 +470,7 @@ export default function AdminPage() {
   };
 
   // Delete eligible wallet
-  const handleDeleteEligible = async (id: number) => {
+  const handleDeleteEligible = async (id: string | number) => {
     if (!confirm('Are you sure you want to delete this eligible wallet?')) return;
 
     try {

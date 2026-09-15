@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tasks = getAllTasksAdmin();
+    const tasks = await getAllTasksAdmin();
     return NextResponse.json({ tasks });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Task URL is required.' }, { status: 400 });
     }
 
-    const task = createTask({
+    const task = await createTask({
       title,
       type,
       url,

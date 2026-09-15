@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       if (!isValidEvmAddress(normalized)) {
         return NextResponse.json({ registered: false, error: 'Invalid EVM address' }, { status: 400 });
       }
-      const entry = getWaitlistUserByAddress(normalized);
+      const entry = await getWaitlistUserByAddress(normalized);
       if (entry) {
         return NextResponse.json({ registered: true, entry });
       }
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const settings = getSettings();
+    const settings = await getSettings();
     if (!settings.waitlist_enabled) {
       return NextResponse.json(
         { error: 'Waitlist is currently closed.' },
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify all required community tasks are completed
-    const taskCheck = checkRequiredTasksCompleted(normalized);
+    const taskCheck = await checkRequiredTasksCompleted(normalized);
     if (!taskCheck.allCompleted) {
       return NextResponse.json(
         {
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Add to waitlist_users persistent database
-    const result = addWaitlistUser(normalized, remoteIp, xHandle);
+    const result = await addWaitlistUser(normalized, remoteIp, xHandle);
 
     if (result.alreadyExists) {
       return NextResponse.json({

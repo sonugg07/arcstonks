@@ -13,13 +13,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const allocation = parseInt(body.allocation, 10) || 1;
 
-    const addresses = getAllWaitlistAddressesForExport();
+    const addresses = await getAllWaitlistAddressesForExport();
     if (addresses.length === 0) {
       return NextResponse.json({ error: 'Waitlist is currently empty' }, { status: 400 });
     }
 
     const records = addresses.map(addr => ({ rawAddress: addr, allocation }));
-    const result = batchImportEligibleWallets(records);
+    const result = await batchImportEligibleWallets(records);
 
     return NextResponse.json({
       success: true,

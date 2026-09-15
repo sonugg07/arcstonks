@@ -36,10 +36,10 @@ export default function CommunityTasks({
   const [tasks, setTasks] = useState<PublicTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [startedTasks, setStartedTasks] = useState<Record<number, boolean>>({});
-  const [actionTimestamps, setActionTimestamps] = useState<Record<number, number>>({});
-  const [countdowns, setCountdowns] = useState<Record<number, number>>({});
-  const [verifyingTasks, setVerifyingTasks] = useState<Record<number, boolean>>({});
+  const [startedTasks, setStartedTasks] = useState<Record<string, boolean>>({});
+  const [actionTimestamps, setActionTimestamps] = useState<Record<string, number>>({});
+  const [countdowns, setCountdowns] = useState<Record<string, number>>({});
+  const [verifyingTasks, setVerifyingTasks] = useState<Record<string, boolean>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isWalletValid = isValidEvmAddress(walletAddress);
@@ -51,10 +51,10 @@ export default function CommunityTasks({
 
     const timer = setInterval(() => {
       setCountdowns(prev => {
-        const next: Record<number, number> = {};
+        const next: Record<string, number> = {};
         for (const [id, count] of Object.entries(prev)) {
           if (count > 1) {
-            next[Number(id)] = count - 1;
+            next[id] = count - 1;
           }
         }
         return next;
@@ -134,14 +134,16 @@ function formatTaskUrl(url?: string): string {
   const handleActionClick = (task: PublicTaskItem) => {
     // Mark as started with timestamp and 3s cooldown
     const now = Date.now();
-    setStartedTasks(prev => ({ ...prev, [task.id]: true }));
-    setActionTimestamps(prev => ({ ...prev, [task.id]: now }));
-    setCountdowns(prev => ({ ...prev, [task.id]: 3 }));
+    const id = String(task.id);
+    setStartedTasks(prev => ({ ...prev, [id]: true }));
+    setActionTimestamps(prev => ({ ...prev, [id]: now }));
+    setCountdowns(prev => ({ ...prev, [id]: 3 }));
     setErrorMsg(null);
   };
 
   // Handle user verification click
   const handleVerifyClick = async (task: PublicTaskItem) => {
+    const id = String(task.id);
     if (!isWalletValid) {
       setErrorMsg('Please enter your EVM wallet address below to verify task completion.');
       const el = document.getElementById('walletAddress');
@@ -157,17 +159,17 @@ function formatTaskUrl(url?: string): string {
       return;
     }
 
-    if (!startedTasks[task.id]) {
+    if (!startedTasks[id]) {
       setErrorMsg(`Please click the '${task.type} on X' button first to perform the action on X.`);
       return;
     }
 
-    if (countdowns[task.id] && countdowns[task.id] > 0) {
-      setErrorMsg(`Action in progress on X. Please wait ${countdowns[task.id]}s before verifying.`);
+    if (countdowns[id] && countdowns[id] > 0) {
+      setErrorMsg(`Action in progress on X. Please wait ${countdowns[id]}s before verifying.`);
       return;
     }
 
-    setVerifyingTasks(prev => ({ ...prev, [task.id]: true }));
+    setVerifyingTasks(prev => ({ ...prev, [id]: true }));
     setErrorMsg(null);
 
     try {
@@ -178,7 +180,7 @@ function formatTaskUrl(url?: string): string {
           address: walletAddress.trim(),
           taskId: task.id,
           proof: trimmedHandle,
-          actionOpenedAt: actionTimestamps[task.id] || Date.now() - 5000,
+          actionOpenedAt: actionTimestamps[id] || Date.now() - 5000,
         }),
       });
 
@@ -199,7 +201,7 @@ function formatTaskUrl(url?: string): string {
     } catch (err: any) {
       setErrorMsg(err.message || 'Error verifying task completion.');
     } finally {
-      setVerifyingTasks(prev => ({ ...prev, [task.id]: false }));
+      setVerifyingTasks(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -335,9 +337,10 @@ function formatTaskUrl(url?: string): string {
       {/* Tasks List */}
       <div className="space-y-2.5">
         {tasks.map((task, idx) => {
-          const isStarted = startedTasks[task.id] || task.completed;
-          const isVerifying = verifyingTasks[task.id] || false;
-          const currentCountdown = countdowns[task.id] || 0;
+          const id = String(task.id);
+          const isStarted = startedTasks[id] || task.completed;
+          const isVerifying = verifyingTasks[id] || false;
+          const currentCountdown = countdowns[id] || 0;
           const formattedIdx = String(idx + 1).padStart(2, '0');
 
           return (

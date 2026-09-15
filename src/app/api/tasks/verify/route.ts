@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid EVM wallet address format.' }, { status: 400 });
     }
 
-    const parsedTaskId = parseInt(taskId, 10);
-    if (isNaN(parsedTaskId)) {
+    if (!taskId) {
       return NextResponse.json({ error: 'Valid Task ID is required.' }, { status: 400 });
     }
+    const cleanTaskId = String(taskId);
 
     // Require genuine X / social proof (handle or post link)
     if (!proof || typeof proof !== 'string' || !proof.trim()) {
@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Anti-Sybil check: prevent same X handle from being used across multiple wallets
-    if (isProofUsedByAnotherWallet(cleanProof, parsedTaskId, normalized)) {
+    const isUsed = await isProofUsedByAnotherWallet(cleanProof, cleanTaskId, normalized);
+    if (isUsed) {
       return NextResponse.json(
         { error: `The social account "${cleanProof}" has already been verified for another wallet. Each wallet entry must use a unique account.` },
         { status: 400 }
@@ -64,14 +65,14 @@ export async function POST(request: NextRequest) {
     }
 
     const formattedProof = isHandle && !cleanProof.startsWith('@') ? `@${cleanProof}` : cleanProof;
-    const result = recordTaskCompletion(normalized, parsedTaskId, formattedProof);
+    const result = await recordTaskCompletion(normalized, cleanTaskId, formattedProof);
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'Failed to record task completion.' }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
-      taskId: parsedTaskId,
+      taskId: cleanTaskId,
       proof: result.proofValue || formattedProof,
       verifiedAt: result.verifiedAt,
       message: `Task successfully verified for ${formattedProof}.`,

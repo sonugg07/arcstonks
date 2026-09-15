@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const addresses = getAllWaitlistAddressesForExport();
+    const addresses = await getAllWaitlistAddressesForExport();
 
     // Create CSV formatted string with ONLY wallet_address
     const csvHeader = 'wallet_address\r\n';

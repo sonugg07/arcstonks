@@ -1,0 +1,1948 @@
+{
+  "migratedAt": "2026-09-15T04:43:36.425Z",
+  "settings": {
+    "id": 1,
+    "waitlist_enabled": 1,
+    "checker_enabled": 1,
+    "updated_at": "2026-09-07 07:05:21"
+  },
+  "users": [
+    {
+      "id": 1,
+      "wallet_address": "0x9999999999999999999999999999999999999999",
+      "created_at": "2026-09-06 14:30:57",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 2,
+      "wallet_address": "0x5555555555555555555555555555555555555555",
+      "created_at": "2026-09-06 14:48:29",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 3,
+      "wallet_address": "0xdfe6f3bf5a52367701839b7c676c95aacc335cc3",
+      "created_at": "2026-09-06 14:52:52",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 4,
+      "wallet_address": "0xba6515257a35b7f6315be3a75f48efe74b20056c",
+      "created_at": "2026-09-06 14:53:20",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 14,
+      "wallet_address": "0xd8b3453f79b196cfc483ccd1521ddb727816ee6c",
+      "created_at": "2026-09-07 04:19:49",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 15,
+      "wallet_address": "0xfee86d460877c981cf80909e2de81eb8018d2b1b",
+      "created_at": "2026-09-07 04:19:56",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 16,
+      "wallet_address": "0x424a7b75675b1f64d57201b7b55cfc531a1dc8d1",
+      "created_at": "2026-09-07 04:21:49",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 17,
+      "wallet_address": "0x31d575cfbde95b0d0d8c26600029ea6f7aeac0bd",
+      "created_at": "2026-09-07 04:21:55",
+      "ip_hash": "::1",
+      "x_handle": null
+    },
+    {
+      "id": 18,
+      "wallet_address": "0xf8998e041d825df298915c3c53a550e9a2fff23c",
+      "created_at": "2026-09-07 04:35:38",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_f8998e"
+    },
+    {
+      "id": 19,
+      "wallet_address": "0x376cab5cdd61ab019e6136a5e400031802880474",
+      "created_at": "2026-09-07 04:35:43",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_376cab"
+    },
+    {
+      "id": 20,
+      "wallet_address": "0x6981a117755ee5abd02849facb4f6134ffe88e10",
+      "created_at": "2026-09-07 04:45:11",
+      "ip_hash": "::1",
+      "x_handle": "@tester_6981a1"
+    },
+    {
+      "id": 21,
+      "wallet_address": "0x1d7f15b8fde8d2bb64db8520d3776e76002fbad3",
+      "created_at": "2026-09-07 04:46:00",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_1d7f15"
+    },
+    {
+      "id": 22,
+      "wallet_address": "0xa3f73b36edb3caf492f9391909573d8a6bde92a4",
+      "created_at": "2026-09-07 04:46:53",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_a3f73b"
+    },
+    {
+      "id": 23,
+      "wallet_address": "0x3251de45db71eeb7038350456f6545363fc2e7db",
+      "created_at": "2026-09-07 04:47:05",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_3251de"
+    },
+    {
+      "id": 24,
+      "wallet_address": "0xea67584cda913bdf8605614f0ebe7a3763c53053",
+      "created_at": "2026-09-07 04:48:18",
+      "ip_hash": "::1",
+      "x_handle": "@rdftgyh"
+    },
+    {
+      "id": 25,
+      "wallet_address": "0x9895b4b0e23b4d9eea6d01a3463ab99fffccc2e2",
+      "created_at": "2026-09-07 04:55:48",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_9895b4"
+    },
+    {
+      "id": 26,
+      "wallet_address": "0xf23e0a3d106fc39324ebb8bd56768894cb680f34",
+      "created_at": "2026-09-07 04:56:13",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_f23e0a"
+    },
+    {
+      "id": 27,
+      "wallet_address": "0x1d1472d7c0d21ed36b1f3b0ed2be5040c1c42f4a",
+      "created_at": "2026-09-07 04:56:20",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_1d1472"
+    },
+    {
+      "id": 28,
+      "wallet_address": "0x67947822d842d6ae7160238d91ae036e0b1b7b47",
+      "created_at": "2026-09-07 05:12:52",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_679478"
+    },
+    {
+      "id": 31,
+      "wallet_address": "0xfcdb7abf3a8a2483428a001262ba99b1c118fa13",
+      "created_at": "2026-09-07 06:05:09",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_fcdb7a"
+    },
+    {
+      "id": 33,
+      "wallet_address": "0x515efd84564af24a56158433acc15f82aec95df4",
+      "created_at": "2026-09-07 07:03:43",
+      "ip_hash": "::1",
+      "x_handle": "@arcuser_515efd"
+    }
+  ],
+  "eligible": [
+    {
+      "id": 1,
+      "wallet_address": "0x71c63397e3e79401736b43fa9fe4b952e8c0409a",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:57",
+      "updated_at": "2026-09-06 14:30:57"
+    },
+    {
+      "id": 2,
+      "wallet_address": "0x8626f6940e2eb28930efb4cef49b2d1f2c9c1199",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:57",
+      "updated_at": "2026-09-06 14:30:57"
+    },
+    {
+      "id": 3,
+      "wallet_address": "0xdd870fa1b7c4700f2bd7f44238821c26f7392148",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:57",
+      "updated_at": "2026-09-06 14:30:57"
+    },
+    {
+      "id": 4,
+      "wallet_address": "0x587e2393335a71e1f441c2b0fa10959a1d58b2f3",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:57",
+      "updated_at": "2026-09-06 14:30:57"
+    },
+    {
+      "id": 5,
+      "wallet_address": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:57",
+      "updated_at": "2026-09-06 14:30:57"
+    },
+    {
+      "id": 6,
+      "wallet_address": "0x1111111111111111111111111111111111111111",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:58",
+      "updated_at": "2026-09-06 14:30:58"
+    },
+    {
+      "id": 7,
+      "wallet_address": "0x2222222222222222222222222222222222222222",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:58",
+      "updated_at": "2026-09-06 14:30:58"
+    },
+    {
+      "id": 8,
+      "wallet_address": "0x3333333333333333333333333333333333333333",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-06 14:30:58",
+      "updated_at": "2026-09-06 14:30:58"
+    },
+    {
+      "id": 9,
+      "wallet_address": "0xbf35efd620ad29b4650d85218c958d3a28b7a0df",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-06 14:53:20",
+      "updated_at": "2026-09-06 14:53:20"
+    },
+    {
+      "id": 10,
+      "wallet_address": "0x2dba97eb22cd4c434641a7391d9847852a0f7534",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-06 14:53:20",
+      "updated_at": "2026-09-06 14:53:20"
+    },
+    {
+      "id": 11,
+      "wallet_address": "0xf4e400e449106cf9727c42102cc5d96a022eb7b6",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-06 14:53:20",
+      "updated_at": "2026-09-06 14:53:20"
+    },
+    {
+      "id": 12,
+      "wallet_address": "0x0dba1f911ceb77b6d9cc05e85bb3641d9d6f1780",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 03:56:09",
+      "updated_at": "2026-09-07 03:56:09"
+    },
+    {
+      "id": 13,
+      "wallet_address": "0x371677adb9e7aa65f14e134c928c5481517b079e",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 03:56:09",
+      "updated_at": "2026-09-07 03:56:09"
+    },
+    {
+      "id": 14,
+      "wallet_address": "0x0a87d8118fe71828c5703d2490c95512770f6d33",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 03:56:09",
+      "updated_at": "2026-09-07 03:56:09"
+    },
+    {
+      "id": 15,
+      "wallet_address": "0x6411f2d06a5fb6ba1b99edc748ecc10b322a8f95",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 03:59:49",
+      "updated_at": "2026-09-07 03:59:49"
+    },
+    {
+      "id": 16,
+      "wallet_address": "0xb5270d312404028aedc12e870ac443c6901f242d",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 03:59:49",
+      "updated_at": "2026-09-07 03:59:49"
+    },
+    {
+      "id": 17,
+      "wallet_address": "0xbd51e02809c529c072d9bed1ec3f0ca570e231c9",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 03:59:49",
+      "updated_at": "2026-09-07 03:59:49"
+    },
+    {
+      "id": 18,
+      "wallet_address": "0x84966e6c22214ee01b25bb21aaa1d2d8182e86c2",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:05:36",
+      "updated_at": "2026-09-07 04:05:36"
+    },
+    {
+      "id": 19,
+      "wallet_address": "0xb624df4e94c613443a4d3139e9af7b6712b60a5a",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:05:36",
+      "updated_at": "2026-09-07 04:05:36"
+    },
+    {
+      "id": 20,
+      "wallet_address": "0x689a70364f048b33eaf29ac87bd2d00c4bf312fa",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:05:36",
+      "updated_at": "2026-09-07 04:05:36"
+    },
+    {
+      "id": 21,
+      "wallet_address": "0xed7d6b90f3ddf694b2c936b4d4a65fa5deaaa35c",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:09:03",
+      "updated_at": "2026-09-07 04:09:03"
+    },
+    {
+      "id": 22,
+      "wallet_address": "0xb9eac7099806b45ec4c4e51c4f1666f75a698d9c",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:09:03",
+      "updated_at": "2026-09-07 04:09:03"
+    },
+    {
+      "id": 23,
+      "wallet_address": "0xce1260651d3814c9bfbfb9e775337e592b43e8c4",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:09:03",
+      "updated_at": "2026-09-07 04:09:03"
+    },
+    {
+      "id": 24,
+      "wallet_address": "0x28dfee2a51da4512422b8cc30fb47557f5a6266d",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:12:28",
+      "updated_at": "2026-09-07 04:12:28"
+    },
+    {
+      "id": 25,
+      "wallet_address": "0x173bff7a8369aad4b520f8f01c0bb23880c055f5",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:19:56",
+      "updated_at": "2026-09-07 04:19:56"
+    },
+    {
+      "id": 26,
+      "wallet_address": "0x72b503e70385f5229fc89c27b10575cc12b46230",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:19:56",
+      "updated_at": "2026-09-07 04:19:56"
+    },
+    {
+      "id": 27,
+      "wallet_address": "0xbe09421b2d0b75976ca481e466c7bed64daba057",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:19:56",
+      "updated_at": "2026-09-07 04:19:56"
+    },
+    {
+      "id": 28,
+      "wallet_address": "0x189ab2f905a0dab8e9aa788d9ceab568f62edb78",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:21:55",
+      "updated_at": "2026-09-07 04:21:55"
+    },
+    {
+      "id": 29,
+      "wallet_address": "0x156af444de872a55415584a38484c1af4794b04a",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:21:55",
+      "updated_at": "2026-09-07 04:21:55"
+    },
+    {
+      "id": 30,
+      "wallet_address": "0x9fcd7fc0699f1759fa24187cfff78347eb67af67",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:21:55",
+      "updated_at": "2026-09-07 04:21:55"
+    },
+    {
+      "id": 31,
+      "wallet_address": "0xdcfc5916ab08afe4a230e48c023ed058a90e6733",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:35:44",
+      "updated_at": "2026-09-07 04:35:44"
+    },
+    {
+      "id": 32,
+      "wallet_address": "0x34c61920206719f4cc46e05d0ae8b391e126abb9",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:35:44",
+      "updated_at": "2026-09-07 04:35:44"
+    },
+    {
+      "id": 33,
+      "wallet_address": "0x023fb67eb7b8c5c323c6914b354c750a15ad513a",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:35:44",
+      "updated_at": "2026-09-07 04:35:44"
+    },
+    {
+      "id": 34,
+      "wallet_address": "0xbe390bccabbc8639b736087a02ce689dcf69a2a4",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:46:00",
+      "updated_at": "2026-09-07 04:46:00"
+    },
+    {
+      "id": 35,
+      "wallet_address": "0x86b98cabf8de384590935e204ff52eee04f3a0fe",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:46:00",
+      "updated_at": "2026-09-07 04:46:00"
+    },
+    {
+      "id": 36,
+      "wallet_address": "0xfeabc4307bf3de1ad7a9d5d70835a5b567918d0c",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:46:00",
+      "updated_at": "2026-09-07 04:46:00"
+    },
+    {
+      "id": 37,
+      "wallet_address": "0x78215e821452e670e9692653b4aae8de59f5b9e5",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:46:53",
+      "updated_at": "2026-09-07 04:46:53"
+    },
+    {
+      "id": 38,
+      "wallet_address": "0xc57a3f52dfae32a8ea9f5753f5724e2522da1806",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:46:53",
+      "updated_at": "2026-09-07 04:46:53"
+    },
+    {
+      "id": 39,
+      "wallet_address": "0x6853eb4c687b75f2882357dd7b1334b9bd1aea1f",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:46:53",
+      "updated_at": "2026-09-07 04:46:53"
+    },
+    {
+      "id": 40,
+      "wallet_address": "0x9999999999999999999999999999999999999999",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 41,
+      "wallet_address": "0x5555555555555555555555555555555555555555",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 42,
+      "wallet_address": "0xdfe6f3bf5a52367701839b7c676c95aacc335cc3",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 43,
+      "wallet_address": "0xba6515257a35b7f6315be3a75f48efe74b20056c",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 44,
+      "wallet_address": "0xd8b3453f79b196cfc483ccd1521ddb727816ee6c",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 45,
+      "wallet_address": "0xfee86d460877c981cf80909e2de81eb8018d2b1b",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 46,
+      "wallet_address": "0x424a7b75675b1f64d57201b7b55cfc531a1dc8d1",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 47,
+      "wallet_address": "0x31d575cfbde95b0d0d8c26600029ea6f7aeac0bd",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 48,
+      "wallet_address": "0xf8998e041d825df298915c3c53a550e9a2fff23c",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 49,
+      "wallet_address": "0x376cab5cdd61ab019e6136a5e400031802880474",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 50,
+      "wallet_address": "0x6981a117755ee5abd02849facb4f6134ffe88e10",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 51,
+      "wallet_address": "0x1d7f15b8fde8d2bb64db8520d3776e76002fbad3",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 52,
+      "wallet_address": "0xa3f73b36edb3caf492f9391909573d8a6bde92a4",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 53,
+      "wallet_address": "0x3251de45db71eeb7038350456f6545363fc2e7db",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 54,
+      "wallet_address": "0xea67584cda913bdf8605614f0ebe7a3763c53053",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:49:12",
+      "updated_at": "2026-09-07 04:49:12"
+    },
+    {
+      "id": 55,
+      "wallet_address": "0x11f8fcbd498c451b058516f13ca28f9737d68d37",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:55:48",
+      "updated_at": "2026-09-07 04:55:48"
+    },
+    {
+      "id": 56,
+      "wallet_address": "0xd90ead302e247966c918c29d0562a9d7551a3793",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:55:48",
+      "updated_at": "2026-09-07 04:55:48"
+    },
+    {
+      "id": 57,
+      "wallet_address": "0x162e9a60bfcd60f1aba8f2786d7c6a85b5e64f62",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:55:48",
+      "updated_at": "2026-09-07 04:55:48"
+    },
+    {
+      "id": 58,
+      "wallet_address": "0xef8bb329f21098d7264829615b6d64eaa87c7215",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 04:56:13",
+      "updated_at": "2026-09-07 04:56:13"
+    },
+    {
+      "id": 59,
+      "wallet_address": "0xfca224b07721ce25a19b31a77e4a491d58f419ed",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 04:56:13",
+      "updated_at": "2026-09-07 04:56:13"
+    },
+    {
+      "id": 60,
+      "wallet_address": "0xeacb284fd371de28b019994bac181dce2a53a9dd",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 04:56:13",
+      "updated_at": "2026-09-07 04:56:13"
+    },
+    {
+      "id": 61,
+      "wallet_address": "0x1ff080acdfba4968b6f990fff571d26c0f323b1c",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 06:03:42",
+      "updated_at": "2026-09-07 06:03:42"
+    },
+    {
+      "id": 62,
+      "wallet_address": "0xbdc8e9c45a97c4b424d6db28b08aeac82b028b9f",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 06:03:42",
+      "updated_at": "2026-09-07 06:03:42"
+    },
+    {
+      "id": 63,
+      "wallet_address": "0x04fbc4544cd48c5f70cc05c73041f5fa021ebf20",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 06:03:42",
+      "updated_at": "2026-09-07 06:03:42"
+    },
+    {
+      "id": 64,
+      "wallet_address": "0xaeb09499e27bcecb94f0cfb961540e7a75489fb8",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 06:04:58",
+      "updated_at": "2026-09-07 06:04:58"
+    },
+    {
+      "id": 65,
+      "wallet_address": "0xa79d47812b6c02360ff4fc6bb3821e5b11f25274",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 06:04:58",
+      "updated_at": "2026-09-07 06:04:58"
+    },
+    {
+      "id": 66,
+      "wallet_address": "0x724568199919d61baf88c4f6a4136db9236d1272",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 06:04:58",
+      "updated_at": "2026-09-07 06:04:58"
+    },
+    {
+      "id": 67,
+      "wallet_address": "0x33d7e99fcacabba66b8b7dbd5577488d7e571409",
+      "allocation": 3,
+      "status": "active",
+      "created_at": "2026-09-07 07:03:25",
+      "updated_at": "2026-09-07 07:03:25"
+    },
+    {
+      "id": 68,
+      "wallet_address": "0x749fa7f95bd6e2d3789ec52e2061aea59ad23795",
+      "allocation": 2,
+      "status": "active",
+      "created_at": "2026-09-07 07:03:26",
+      "updated_at": "2026-09-07 07:03:26"
+    },
+    {
+      "id": 69,
+      "wallet_address": "0x28a0cd6fd5501a1941af6ed6fa59b5442d174714",
+      "allocation": 1,
+      "status": "active",
+      "created_at": "2026-09-07 07:03:26",
+      "updated_at": "2026-09-07 07:03:26"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Follow ArcStonks on X",
+      "type": "Follow",
+      "url": "https://x.com/arcstonks",
+      "required": 1,
+      "enabled": 1,
+      "display_order": 1,
+      "created_at": "2026-09-06 14:48:29",
+      "updated_at": "2026-09-07 04:39:39"
+    },
+    {
+      "id": 2,
+      "title": "Like our announcement",
+      "type": "Like",
+      "url": "https://x.com/arcstonks",
+      "required": 1,
+      "enabled": 1,
+      "display_order": 2,
+      "created_at": "2026-09-06 14:48:29",
+      "updated_at": "2026-09-07 04:39:22"
+    },
+    {
+      "id": 3,
+      "title": "Repost our announcement",
+      "type": "Repost",
+      "url": "https://x.com/arcstonks",
+      "required": 1,
+      "enabled": 1,
+      "display_order": 3,
+      "created_at": "2026-09-06 14:48:29",
+      "updated_at": "2026-09-06 14:48:29"
+    },
+    {
+      "id": 4,
+      "title": "Comment on our announcement",
+      "type": "Comment",
+      "url": "https://x.com/arcstonks",
+      "required": 1,
+      "enabled": 1,
+      "display_order": 4,
+      "created_at": "2026-09-06 14:48:29",
+      "updated_at": "2026-09-06 14:48:29"
+    }
+  ],
+  "completions": [
+    {
+      "id": 1,
+      "wallet_address": "0x5555555555555555555555555555555555555555",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:48:29",
+      "created_at": "2026-09-06 14:48:29",
+      "proof_value": null
+    },
+    {
+      "id": 2,
+      "wallet_address": "0x5555555555555555555555555555555555555555",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:48:29",
+      "created_at": "2026-09-06 14:48:29",
+      "proof_value": null
+    },
+    {
+      "id": 3,
+      "wallet_address": "0x5555555555555555555555555555555555555555",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:48:29",
+      "created_at": "2026-09-06 14:48:29",
+      "proof_value": null
+    },
+    {
+      "id": 4,
+      "wallet_address": "0x5555555555555555555555555555555555555555",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:48:29",
+      "created_at": "2026-09-06 14:48:29",
+      "proof_value": null
+    },
+    {
+      "id": 5,
+      "wallet_address": "0xdfe6f3bf5a52367701839b7c676c95aacc335cc3",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:52:52",
+      "created_at": "2026-09-06 14:52:52",
+      "proof_value": null
+    },
+    {
+      "id": 6,
+      "wallet_address": "0xdfe6f3bf5a52367701839b7c676c95aacc335cc3",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:52:52",
+      "created_at": "2026-09-06 14:52:52",
+      "proof_value": null
+    },
+    {
+      "id": 7,
+      "wallet_address": "0xdfe6f3bf5a52367701839b7c676c95aacc335cc3",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:52:52",
+      "created_at": "2026-09-06 14:52:52",
+      "proof_value": null
+    },
+    {
+      "id": 8,
+      "wallet_address": "0xdfe6f3bf5a52367701839b7c676c95aacc335cc3",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:52:52",
+      "created_at": "2026-09-06 14:52:52",
+      "proof_value": null
+    },
+    {
+      "id": 9,
+      "wallet_address": "0xba6515257a35b7f6315be3a75f48efe74b20056c",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:20",
+      "created_at": "2026-09-06 14:53:20",
+      "proof_value": null
+    },
+    {
+      "id": 10,
+      "wallet_address": "0xba6515257a35b7f6315be3a75f48efe74b20056c",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:20",
+      "created_at": "2026-09-06 14:53:20",
+      "proof_value": null
+    },
+    {
+      "id": 11,
+      "wallet_address": "0xba6515257a35b7f6315be3a75f48efe74b20056c",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:20",
+      "created_at": "2026-09-06 14:53:20",
+      "proof_value": null
+    },
+    {
+      "id": 12,
+      "wallet_address": "0xba6515257a35b7f6315be3a75f48efe74b20056c",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:20",
+      "created_at": "2026-09-06 14:53:20",
+      "proof_value": null
+    },
+    {
+      "id": 13,
+      "wallet_address": "0xe26e35c87f43c44f0390287931800d03ae1a65e1",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:26",
+      "created_at": "2026-09-06 14:53:26",
+      "proof_value": null
+    },
+    {
+      "id": 14,
+      "wallet_address": "0xe26e35c87f43c44f0390287931800d03ae1a65e1",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:26",
+      "created_at": "2026-09-06 14:53:26",
+      "proof_value": null
+    },
+    {
+      "id": 15,
+      "wallet_address": "0xe26e35c87f43c44f0390287931800d03ae1a65e1",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:26",
+      "created_at": "2026-09-06 14:53:26",
+      "proof_value": null
+    },
+    {
+      "id": 16,
+      "wallet_address": "0xe26e35c87f43c44f0390287931800d03ae1a65e1",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-06 14:53:26",
+      "created_at": "2026-09-06 14:53:26",
+      "proof_value": null
+    },
+    {
+      "id": 17,
+      "wallet_address": "0x043bb22b23d0f9853a25705331d5de79fb429394",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:04",
+      "created_at": "2026-09-07 03:56:04",
+      "proof_value": null
+    },
+    {
+      "id": 18,
+      "wallet_address": "0x043bb22b23d0f9853a25705331d5de79fb429394",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:04",
+      "created_at": "2026-09-07 03:56:04",
+      "proof_value": null
+    },
+    {
+      "id": 19,
+      "wallet_address": "0x043bb22b23d0f9853a25705331d5de79fb429394",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:04",
+      "created_at": "2026-09-07 03:56:04",
+      "proof_value": null
+    },
+    {
+      "id": 20,
+      "wallet_address": "0x043bb22b23d0f9853a25705331d5de79fb429394",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:04",
+      "created_at": "2026-09-07 03:56:04",
+      "proof_value": null
+    },
+    {
+      "id": 21,
+      "wallet_address": "0xdcc09e15fd5034bc5c3ef6a78ed512199e6b3969",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:09",
+      "created_at": "2026-09-07 03:56:09",
+      "proof_value": null
+    },
+    {
+      "id": 22,
+      "wallet_address": "0xdcc09e15fd5034bc5c3ef6a78ed512199e6b3969",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:09",
+      "created_at": "2026-09-07 03:56:09",
+      "proof_value": null
+    },
+    {
+      "id": 23,
+      "wallet_address": "0xdcc09e15fd5034bc5c3ef6a78ed512199e6b3969",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:09",
+      "created_at": "2026-09-07 03:56:09",
+      "proof_value": null
+    },
+    {
+      "id": 24,
+      "wallet_address": "0xdcc09e15fd5034bc5c3ef6a78ed512199e6b3969",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:56:09",
+      "created_at": "2026-09-07 03:56:09",
+      "proof_value": null
+    },
+    {
+      "id": 25,
+      "wallet_address": "0x30bcd63764adb55ef0c760101574b1df5474359e",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:43",
+      "created_at": "2026-09-07 03:59:43",
+      "proof_value": null
+    },
+    {
+      "id": 26,
+      "wallet_address": "0x30bcd63764adb55ef0c760101574b1df5474359e",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:43",
+      "created_at": "2026-09-07 03:59:43",
+      "proof_value": null
+    },
+    {
+      "id": 27,
+      "wallet_address": "0x30bcd63764adb55ef0c760101574b1df5474359e",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:43",
+      "created_at": "2026-09-07 03:59:43",
+      "proof_value": null
+    },
+    {
+      "id": 28,
+      "wallet_address": "0x30bcd63764adb55ef0c760101574b1df5474359e",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:43",
+      "created_at": "2026-09-07 03:59:43",
+      "proof_value": null
+    },
+    {
+      "id": 29,
+      "wallet_address": "0x96b556a5ec1175482afc055be0f1efe119b14502",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:49",
+      "created_at": "2026-09-07 03:59:49",
+      "proof_value": null
+    },
+    {
+      "id": 30,
+      "wallet_address": "0x96b556a5ec1175482afc055be0f1efe119b14502",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:49",
+      "created_at": "2026-09-07 03:59:49",
+      "proof_value": null
+    },
+    {
+      "id": 31,
+      "wallet_address": "0x96b556a5ec1175482afc055be0f1efe119b14502",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:49",
+      "created_at": "2026-09-07 03:59:49",
+      "proof_value": null
+    },
+    {
+      "id": 32,
+      "wallet_address": "0x96b556a5ec1175482afc055be0f1efe119b14502",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 03:59:49",
+      "created_at": "2026-09-07 03:59:49",
+      "proof_value": null
+    },
+    {
+      "id": 33,
+      "wallet_address": "0xa00d494aaf8d8b29b737b281ae7b01b65b8bcc47",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:28",
+      "created_at": "2026-09-07 04:05:28",
+      "proof_value": null
+    },
+    {
+      "id": 34,
+      "wallet_address": "0xa00d494aaf8d8b29b737b281ae7b01b65b8bcc47",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:28",
+      "created_at": "2026-09-07 04:05:28",
+      "proof_value": null
+    },
+    {
+      "id": 35,
+      "wallet_address": "0xa00d494aaf8d8b29b737b281ae7b01b65b8bcc47",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:28",
+      "created_at": "2026-09-07 04:05:28",
+      "proof_value": null
+    },
+    {
+      "id": 36,
+      "wallet_address": "0xa00d494aaf8d8b29b737b281ae7b01b65b8bcc47",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:28",
+      "created_at": "2026-09-07 04:05:28",
+      "proof_value": null
+    },
+    {
+      "id": 37,
+      "wallet_address": "0x27e3195c73579248ed5d155cec024dcdf53f7e3b",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:36",
+      "created_at": "2026-09-07 04:05:36",
+      "proof_value": null
+    },
+    {
+      "id": 38,
+      "wallet_address": "0x27e3195c73579248ed5d155cec024dcdf53f7e3b",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:36",
+      "created_at": "2026-09-07 04:05:36",
+      "proof_value": null
+    },
+    {
+      "id": 39,
+      "wallet_address": "0x27e3195c73579248ed5d155cec024dcdf53f7e3b",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:36",
+      "created_at": "2026-09-07 04:05:36",
+      "proof_value": null
+    },
+    {
+      "id": 40,
+      "wallet_address": "0x27e3195c73579248ed5d155cec024dcdf53f7e3b",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:05:36",
+      "created_at": "2026-09-07 04:05:36",
+      "proof_value": null
+    },
+    {
+      "id": 41,
+      "wallet_address": "0xc35e798e28d2cee1a7799f7a870a1b8154b8a153",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:50",
+      "created_at": "2026-09-07 04:08:50",
+      "proof_value": null
+    },
+    {
+      "id": 42,
+      "wallet_address": "0xc35e798e28d2cee1a7799f7a870a1b8154b8a153",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:50",
+      "created_at": "2026-09-07 04:08:50",
+      "proof_value": null
+    },
+    {
+      "id": 43,
+      "wallet_address": "0xc35e798e28d2cee1a7799f7a870a1b8154b8a153",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:50",
+      "created_at": "2026-09-07 04:08:50",
+      "proof_value": null
+    },
+    {
+      "id": 44,
+      "wallet_address": "0xc35e798e28d2cee1a7799f7a870a1b8154b8a153",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:50",
+      "created_at": "2026-09-07 04:08:50",
+      "proof_value": null
+    },
+    {
+      "id": 45,
+      "wallet_address": "0x03da24f9afbcf670baca95315c59f77ab84f61f4",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:59",
+      "created_at": "2026-09-07 04:08:59",
+      "proof_value": null
+    },
+    {
+      "id": 46,
+      "wallet_address": "0x03da24f9afbcf670baca95315c59f77ab84f61f4",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:59",
+      "created_at": "2026-09-07 04:08:59",
+      "proof_value": null
+    },
+    {
+      "id": 47,
+      "wallet_address": "0x03da24f9afbcf670baca95315c59f77ab84f61f4",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:59",
+      "created_at": "2026-09-07 04:08:59",
+      "proof_value": null
+    },
+    {
+      "id": 48,
+      "wallet_address": "0x03da24f9afbcf670baca95315c59f77ab84f61f4",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:08:59",
+      "created_at": "2026-09-07 04:08:59",
+      "proof_value": null
+    },
+    {
+      "id": 49,
+      "wallet_address": "0xd8b3453f79b196cfc483ccd1521ddb727816ee6c",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:49",
+      "created_at": "2026-09-07 04:19:49",
+      "proof_value": null
+    },
+    {
+      "id": 50,
+      "wallet_address": "0xd8b3453f79b196cfc483ccd1521ddb727816ee6c",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:49",
+      "created_at": "2026-09-07 04:19:49",
+      "proof_value": null
+    },
+    {
+      "id": 51,
+      "wallet_address": "0xd8b3453f79b196cfc483ccd1521ddb727816ee6c",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:49",
+      "created_at": "2026-09-07 04:19:49",
+      "proof_value": null
+    },
+    {
+      "id": 52,
+      "wallet_address": "0xd8b3453f79b196cfc483ccd1521ddb727816ee6c",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:49",
+      "created_at": "2026-09-07 04:19:49",
+      "proof_value": null
+    },
+    {
+      "id": 53,
+      "wallet_address": "0xfee86d460877c981cf80909e2de81eb8018d2b1b",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:56",
+      "created_at": "2026-09-07 04:19:56",
+      "proof_value": null
+    },
+    {
+      "id": 54,
+      "wallet_address": "0xfee86d460877c981cf80909e2de81eb8018d2b1b",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:56",
+      "created_at": "2026-09-07 04:19:56",
+      "proof_value": null
+    },
+    {
+      "id": 55,
+      "wallet_address": "0xfee86d460877c981cf80909e2de81eb8018d2b1b",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:56",
+      "created_at": "2026-09-07 04:19:56",
+      "proof_value": null
+    },
+    {
+      "id": 56,
+      "wallet_address": "0xfee86d460877c981cf80909e2de81eb8018d2b1b",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:19:56",
+      "created_at": "2026-09-07 04:19:56",
+      "proof_value": null
+    },
+    {
+      "id": 57,
+      "wallet_address": "0x424a7b75675b1f64d57201b7b55cfc531a1dc8d1",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:49",
+      "created_at": "2026-09-07 04:21:49",
+      "proof_value": null
+    },
+    {
+      "id": 58,
+      "wallet_address": "0x424a7b75675b1f64d57201b7b55cfc531a1dc8d1",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:49",
+      "created_at": "2026-09-07 04:21:49",
+      "proof_value": null
+    },
+    {
+      "id": 59,
+      "wallet_address": "0x424a7b75675b1f64d57201b7b55cfc531a1dc8d1",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:49",
+      "created_at": "2026-09-07 04:21:49",
+      "proof_value": null
+    },
+    {
+      "id": 60,
+      "wallet_address": "0x424a7b75675b1f64d57201b7b55cfc531a1dc8d1",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:49",
+      "created_at": "2026-09-07 04:21:49",
+      "proof_value": null
+    },
+    {
+      "id": 61,
+      "wallet_address": "0x31d575cfbde95b0d0d8c26600029ea6f7aeac0bd",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:55",
+      "created_at": "2026-09-07 04:21:55",
+      "proof_value": null
+    },
+    {
+      "id": 62,
+      "wallet_address": "0x31d575cfbde95b0d0d8c26600029ea6f7aeac0bd",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:55",
+      "created_at": "2026-09-07 04:21:55",
+      "proof_value": null
+    },
+    {
+      "id": 63,
+      "wallet_address": "0x31d575cfbde95b0d0d8c26600029ea6f7aeac0bd",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:55",
+      "created_at": "2026-09-07 04:21:55",
+      "proof_value": null
+    },
+    {
+      "id": 64,
+      "wallet_address": "0x31d575cfbde95b0d0d8c26600029ea6f7aeac0bd",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:21:55",
+      "created_at": "2026-09-07 04:21:55",
+      "proof_value": null
+    },
+    {
+      "id": 65,
+      "wallet_address": "0xf8998e041d825df298915c3c53a550e9a2fff23c",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:38",
+      "created_at": "2026-09-07 04:35:38",
+      "proof_value": "@arcuser_f8998e"
+    },
+    {
+      "id": 66,
+      "wallet_address": "0xf8998e041d825df298915c3c53a550e9a2fff23c",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:38",
+      "created_at": "2026-09-07 04:35:38",
+      "proof_value": "@arcuser_f8998e"
+    },
+    {
+      "id": 67,
+      "wallet_address": "0xf8998e041d825df298915c3c53a550e9a2fff23c",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:38",
+      "created_at": "2026-09-07 04:35:38",
+      "proof_value": "@arcuser_f8998e"
+    },
+    {
+      "id": 68,
+      "wallet_address": "0xf8998e041d825df298915c3c53a550e9a2fff23c",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:38",
+      "created_at": "2026-09-07 04:35:38",
+      "proof_value": "@arcuser_f8998e"
+    },
+    {
+      "id": 70,
+      "wallet_address": "0x376cab5cdd61ab019e6136a5e400031802880474",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:43",
+      "created_at": "2026-09-07 04:35:43",
+      "proof_value": "@arcuser_376cab"
+    },
+    {
+      "id": 71,
+      "wallet_address": "0x376cab5cdd61ab019e6136a5e400031802880474",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:43",
+      "created_at": "2026-09-07 04:35:43",
+      "proof_value": "@arcuser_376cab"
+    },
+    {
+      "id": 72,
+      "wallet_address": "0x376cab5cdd61ab019e6136a5e400031802880474",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:43",
+      "created_at": "2026-09-07 04:35:43",
+      "proof_value": "@arcuser_376cab"
+    },
+    {
+      "id": 73,
+      "wallet_address": "0x376cab5cdd61ab019e6136a5e400031802880474",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:35:43",
+      "created_at": "2026-09-07 04:35:43",
+      "proof_value": "@arcuser_376cab"
+    },
+    {
+      "id": 75,
+      "wallet_address": "0xea67584cda913bdf8605614f0ebe7a3763c53053",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:41:12",
+      "created_at": "2026-09-07 04:41:12",
+      "proof_value": "@bytewave01"
+    },
+    {
+      "id": 76,
+      "wallet_address": "0xea67584cda913bdf8605614f0ebe7a3763c53053",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:41:13",
+      "created_at": "2026-09-07 04:41:13",
+      "proof_value": "@bytewave01"
+    },
+    {
+      "id": 77,
+      "wallet_address": "0xea67584cda913bdf8605614f0ebe7a3763c53053",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:41:14",
+      "created_at": "2026-09-07 04:41:14",
+      "proof_value": "@bytewave01"
+    },
+    {
+      "id": 78,
+      "wallet_address": "0xea67584cda913bdf8605614f0ebe7a3763c53053",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:41:15",
+      "created_at": "2026-09-07 04:41:15",
+      "proof_value": "@bytewave01"
+    },
+    {
+      "id": 79,
+      "wallet_address": "0x233805a8fb7023dc8445fabbe17970b8044e35ab",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:44:30",
+      "created_at": "2026-09-07 04:44:30",
+      "proof_value": "@tester_233805"
+    },
+    {
+      "id": 80,
+      "wallet_address": "0x233805a8fb7023dc8445fabbe17970b8044e35ab",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:44:30",
+      "created_at": "2026-09-07 04:44:30",
+      "proof_value": "@tester_233805"
+    },
+    {
+      "id": 81,
+      "wallet_address": "0x233805a8fb7023dc8445fabbe17970b8044e35ab",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:44:30",
+      "created_at": "2026-09-07 04:44:30",
+      "proof_value": "@tester_233805"
+    },
+    {
+      "id": 82,
+      "wallet_address": "0x233805a8fb7023dc8445fabbe17970b8044e35ab",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:44:30",
+      "created_at": "2026-09-07 04:44:30",
+      "proof_value": "@tester_233805"
+    },
+    {
+      "id": 83,
+      "wallet_address": "0x6981a117755ee5abd02849facb4f6134ffe88e10",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:45:11",
+      "created_at": "2026-09-07 04:45:11",
+      "proof_value": "@tester_6981a1"
+    },
+    {
+      "id": 84,
+      "wallet_address": "0x6981a117755ee5abd02849facb4f6134ffe88e10",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:45:11",
+      "created_at": "2026-09-07 04:45:11",
+      "proof_value": "@tester_6981a1"
+    },
+    {
+      "id": 85,
+      "wallet_address": "0x6981a117755ee5abd02849facb4f6134ffe88e10",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:45:11",
+      "created_at": "2026-09-07 04:45:11",
+      "proof_value": "@tester_6981a1"
+    },
+    {
+      "id": 86,
+      "wallet_address": "0x6981a117755ee5abd02849facb4f6134ffe88e10",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:45:11",
+      "created_at": "2026-09-07 04:45:11",
+      "proof_value": "@tester_6981a1"
+    },
+    {
+      "id": 87,
+      "wallet_address": "0x1d7f15b8fde8d2bb64db8520d3776e76002fbad3",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:00",
+      "created_at": "2026-09-07 04:46:00",
+      "proof_value": "@arcuser_1d7f15"
+    },
+    {
+      "id": 88,
+      "wallet_address": "0x1d7f15b8fde8d2bb64db8520d3776e76002fbad3",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:00",
+      "created_at": "2026-09-07 04:46:00",
+      "proof_value": "@arcuser_1d7f15"
+    },
+    {
+      "id": 89,
+      "wallet_address": "0x1d7f15b8fde8d2bb64db8520d3776e76002fbad3",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:00",
+      "created_at": "2026-09-07 04:46:00",
+      "proof_value": "@arcuser_1d7f15"
+    },
+    {
+      "id": 90,
+      "wallet_address": "0x1d7f15b8fde8d2bb64db8520d3776e76002fbad3",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:00",
+      "created_at": "2026-09-07 04:46:00",
+      "proof_value": "@arcuser_1d7f15"
+    },
+    {
+      "id": 91,
+      "wallet_address": "0xa3f73b36edb3caf492f9391909573d8a6bde92a4",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:53",
+      "created_at": "2026-09-07 04:46:53",
+      "proof_value": "@arcuser_a3f73b"
+    },
+    {
+      "id": 92,
+      "wallet_address": "0xa3f73b36edb3caf492f9391909573d8a6bde92a4",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:53",
+      "created_at": "2026-09-07 04:46:53",
+      "proof_value": "@arcuser_a3f73b"
+    },
+    {
+      "id": 93,
+      "wallet_address": "0xa3f73b36edb3caf492f9391909573d8a6bde92a4",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:53",
+      "created_at": "2026-09-07 04:46:53",
+      "proof_value": "@arcuser_a3f73b"
+    },
+    {
+      "id": 94,
+      "wallet_address": "0xa3f73b36edb3caf492f9391909573d8a6bde92a4",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:46:53",
+      "created_at": "2026-09-07 04:46:53",
+      "proof_value": "@arcuser_a3f73b"
+    },
+    {
+      "id": 95,
+      "wallet_address": "0x3251de45db71eeb7038350456f6545363fc2e7db",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:47:05",
+      "created_at": "2026-09-07 04:47:05",
+      "proof_value": "@arcuser_3251de"
+    },
+    {
+      "id": 96,
+      "wallet_address": "0x3251de45db71eeb7038350456f6545363fc2e7db",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:47:05",
+      "created_at": "2026-09-07 04:47:05",
+      "proof_value": "@arcuser_3251de"
+    },
+    {
+      "id": 97,
+      "wallet_address": "0x3251de45db71eeb7038350456f6545363fc2e7db",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:47:05",
+      "created_at": "2026-09-07 04:47:05",
+      "proof_value": "@arcuser_3251de"
+    },
+    {
+      "id": 98,
+      "wallet_address": "0x3251de45db71eeb7038350456f6545363fc2e7db",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:47:05",
+      "created_at": "2026-09-07 04:47:05",
+      "proof_value": "@arcuser_3251de"
+    },
+    {
+      "id": 99,
+      "wallet_address": "0x9895b4b0e23b4d9eea6d01a3463ab99fffccc2e2",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:55:48",
+      "created_at": "2026-09-07 04:55:48",
+      "proof_value": "@arcuser_9895b4"
+    },
+    {
+      "id": 100,
+      "wallet_address": "0x9895b4b0e23b4d9eea6d01a3463ab99fffccc2e2",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:55:48",
+      "created_at": "2026-09-07 04:55:48",
+      "proof_value": "@arcuser_9895b4"
+    },
+    {
+      "id": 101,
+      "wallet_address": "0x9895b4b0e23b4d9eea6d01a3463ab99fffccc2e2",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:55:48",
+      "created_at": "2026-09-07 04:55:48",
+      "proof_value": "@arcuser_9895b4"
+    },
+    {
+      "id": 102,
+      "wallet_address": "0x9895b4b0e23b4d9eea6d01a3463ab99fffccc2e2",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:55:48",
+      "created_at": "2026-09-07 04:55:48",
+      "proof_value": "@arcuser_9895b4"
+    },
+    {
+      "id": 103,
+      "wallet_address": "0xf23e0a3d106fc39324ebb8bd56768894cb680f34",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:13",
+      "created_at": "2026-09-07 04:56:13",
+      "proof_value": "@arcuser_f23e0a"
+    },
+    {
+      "id": 104,
+      "wallet_address": "0xf23e0a3d106fc39324ebb8bd56768894cb680f34",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:13",
+      "created_at": "2026-09-07 04:56:13",
+      "proof_value": "@arcuser_f23e0a"
+    },
+    {
+      "id": 105,
+      "wallet_address": "0xf23e0a3d106fc39324ebb8bd56768894cb680f34",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:13",
+      "created_at": "2026-09-07 04:56:13",
+      "proof_value": "@arcuser_f23e0a"
+    },
+    {
+      "id": 106,
+      "wallet_address": "0xf23e0a3d106fc39324ebb8bd56768894cb680f34",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:13",
+      "created_at": "2026-09-07 04:56:13",
+      "proof_value": "@arcuser_f23e0a"
+    },
+    {
+      "id": 107,
+      "wallet_address": "0x1d1472d7c0d21ed36b1f3b0ed2be5040c1c42f4a",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:20",
+      "created_at": "2026-09-07 04:56:20",
+      "proof_value": "@arcuser_1d1472"
+    },
+    {
+      "id": 108,
+      "wallet_address": "0x1d1472d7c0d21ed36b1f3b0ed2be5040c1c42f4a",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:20",
+      "created_at": "2026-09-07 04:56:20",
+      "proof_value": "@arcuser_1d1472"
+    },
+    {
+      "id": 109,
+      "wallet_address": "0x1d1472d7c0d21ed36b1f3b0ed2be5040c1c42f4a",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:20",
+      "created_at": "2026-09-07 04:56:20",
+      "proof_value": "@arcuser_1d1472"
+    },
+    {
+      "id": 110,
+      "wallet_address": "0x1d1472d7c0d21ed36b1f3b0ed2be5040c1c42f4a",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 04:56:20",
+      "created_at": "2026-09-07 04:56:20",
+      "proof_value": "@arcuser_1d1472"
+    },
+    {
+      "id": 111,
+      "wallet_address": "0x67947822d842d6ae7160238d91ae036e0b1b7b47",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 05:12:52",
+      "created_at": "2026-09-07 05:12:52",
+      "proof_value": "@arcuser_679478"
+    },
+    {
+      "id": 112,
+      "wallet_address": "0x67947822d842d6ae7160238d91ae036e0b1b7b47",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 05:12:52",
+      "created_at": "2026-09-07 05:12:52",
+      "proof_value": "@arcuser_679478"
+    },
+    {
+      "id": 113,
+      "wallet_address": "0x67947822d842d6ae7160238d91ae036e0b1b7b47",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 05:12:52",
+      "created_at": "2026-09-07 05:12:52",
+      "proof_value": "@arcuser_679478"
+    },
+    {
+      "id": 114,
+      "wallet_address": "0x67947822d842d6ae7160238d91ae036e0b1b7b47",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 05:12:52",
+      "created_at": "2026-09-07 05:12:52",
+      "proof_value": "@arcuser_679478"
+    },
+    {
+      "id": 115,
+      "wallet_address": "0xc373c0784b0de6da020bda44daa4dd14b413ea0c",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:03:42",
+      "created_at": "2026-09-07 06:03:42",
+      "proof_value": "@arcuser_c373c0"
+    },
+    {
+      "id": 116,
+      "wallet_address": "0xc373c0784b0de6da020bda44daa4dd14b413ea0c",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:03:42",
+      "created_at": "2026-09-07 06:03:42",
+      "proof_value": "@arcuser_c373c0"
+    },
+    {
+      "id": 117,
+      "wallet_address": "0xc373c0784b0de6da020bda44daa4dd14b413ea0c",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:03:42",
+      "created_at": "2026-09-07 06:03:42",
+      "proof_value": "@arcuser_c373c0"
+    },
+    {
+      "id": 118,
+      "wallet_address": "0xc373c0784b0de6da020bda44daa4dd14b413ea0c",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:03:42",
+      "created_at": "2026-09-07 06:03:42",
+      "proof_value": "@arcuser_c373c0"
+    },
+    {
+      "id": 119,
+      "wallet_address": "0x5dd4f065c4ba5a07c011e39723abf444ed63dcc0",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:04:58",
+      "created_at": "2026-09-07 06:04:58",
+      "proof_value": "@arcuser_5dd4f0"
+    },
+    {
+      "id": 120,
+      "wallet_address": "0x5dd4f065c4ba5a07c011e39723abf444ed63dcc0",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:04:58",
+      "created_at": "2026-09-07 06:04:58",
+      "proof_value": "@arcuser_5dd4f0"
+    },
+    {
+      "id": 121,
+      "wallet_address": "0x5dd4f065c4ba5a07c011e39723abf444ed63dcc0",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:04:58",
+      "created_at": "2026-09-07 06:04:58",
+      "proof_value": "@arcuser_5dd4f0"
+    },
+    {
+      "id": 122,
+      "wallet_address": "0x5dd4f065c4ba5a07c011e39723abf444ed63dcc0",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:04:58",
+      "created_at": "2026-09-07 06:04:58",
+      "proof_value": "@arcuser_5dd4f0"
+    },
+    {
+      "id": 123,
+      "wallet_address": "0xfcdb7abf3a8a2483428a001262ba99b1c118fa13",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:05:09",
+      "created_at": "2026-09-07 06:05:09",
+      "proof_value": "@arcuser_fcdb7a"
+    },
+    {
+      "id": 124,
+      "wallet_address": "0xfcdb7abf3a8a2483428a001262ba99b1c118fa13",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:05:09",
+      "created_at": "2026-09-07 06:05:09",
+      "proof_value": "@arcuser_fcdb7a"
+    },
+    {
+      "id": 125,
+      "wallet_address": "0xfcdb7abf3a8a2483428a001262ba99b1c118fa13",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:05:09",
+      "created_at": "2026-09-07 06:05:09",
+      "proof_value": "@arcuser_fcdb7a"
+    },
+    {
+      "id": 126,
+      "wallet_address": "0xfcdb7abf3a8a2483428a001262ba99b1c118fa13",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 06:05:09",
+      "created_at": "2026-09-07 06:05:09",
+      "proof_value": "@arcuser_fcdb7a"
+    },
+    {
+      "id": 127,
+      "wallet_address": "0xca6192bfc0285f81e29b3827d5fcf5864e659081",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:25",
+      "created_at": "2026-09-07 07:03:25",
+      "proof_value": "@arcuser_ca6192"
+    },
+    {
+      "id": 128,
+      "wallet_address": "0xca6192bfc0285f81e29b3827d5fcf5864e659081",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:25",
+      "created_at": "2026-09-07 07:03:25",
+      "proof_value": "@arcuser_ca6192"
+    },
+    {
+      "id": 129,
+      "wallet_address": "0xca6192bfc0285f81e29b3827d5fcf5864e659081",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:25",
+      "created_at": "2026-09-07 07:03:25",
+      "proof_value": "@arcuser_ca6192"
+    },
+    {
+      "id": 130,
+      "wallet_address": "0xca6192bfc0285f81e29b3827d5fcf5864e659081",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:25",
+      "created_at": "2026-09-07 07:03:25",
+      "proof_value": "@arcuser_ca6192"
+    },
+    {
+      "id": 131,
+      "wallet_address": "0x515efd84564af24a56158433acc15f82aec95df4",
+      "task_id": 1,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:43",
+      "created_at": "2026-09-07 07:03:43",
+      "proof_value": "@arcuser_515efd"
+    },
+    {
+      "id": 132,
+      "wallet_address": "0x515efd84564af24a56158433acc15f82aec95df4",
+      "task_id": 2,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:43",
+      "created_at": "2026-09-07 07:03:43",
+      "proof_value": "@arcuser_515efd"
+    },
+    {
+      "id": 133,
+      "wallet_address": "0x515efd84564af24a56158433acc15f82aec95df4",
+      "task_id": 3,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:43",
+      "created_at": "2026-09-07 07:03:43",
+      "proof_value": "@arcuser_515efd"
+    },
+    {
+      "id": 134,
+      "wallet_address": "0x515efd84564af24a56158433acc15f82aec95df4",
+      "task_id": 4,
+      "status": "completed",
+      "verified_at": "2026-09-07 07:03:43",
+      "created_at": "2026-09-07 07:03:43",
+      "proof_value": "@arcuser_515efd"
+    }
+  ]
+}

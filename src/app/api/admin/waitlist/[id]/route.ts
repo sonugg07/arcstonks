@@ -10,12 +10,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 
   try {
-    const id = parseInt(params.id, 10);
-    if (isNaN(id)) {
+    const id = params.id;
+    if (!id || !id.trim()) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
-    const deleted = deleteWaitlistUser(id);
+    const deleted = await deleteWaitlistUser(id.trim());
     if (deleted) {
       return NextResponse.json({ success: true, message: 'Waitlist entry deleted.' });
     }

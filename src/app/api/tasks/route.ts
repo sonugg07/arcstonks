@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const address = searchParams.get('address') || undefined;
 
-    const tasks = getPublicTasks(address);
+    const tasks = await getPublicTasks(address);
     return NextResponse.json({ tasks });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

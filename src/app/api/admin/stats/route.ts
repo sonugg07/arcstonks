@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const stats = getAdminStats();
+    const stats = await getAdminStats();
     return NextResponse.json(stats);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const settings = getSettings();
+    const settings = await getSettings();
     return NextResponse.json(settings);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { waitlist_enabled, checker_enabled } = body;
 
-    const updated = updateSettings(waitlist_enabled, checker_enabled);
+    const updated = await updateSettings(waitlist_enabled, checker_enabled);
     return NextResponse.json({
       success: true,
       settings: updated,

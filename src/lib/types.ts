@@ -1,12 +1,12 @@
 export interface SiteSettings {
-  id: number;
-  waitlist_enabled: number; // 1 or 0
-  checker_enabled: number;  // 1 or 0
+  id: string | number;
+  waitlist_enabled: boolean | number;
+  checker_enabled: boolean | number;
   updated_at: string;
 }
 
 export interface WaitlistUser {
-  id: number;
+  id: string | number;
   wallet_address: string;
   created_at: string;
   ip_hash?: string;
@@ -14,7 +14,7 @@ export interface WaitlistUser {
 }
 
 export interface EligibleWallet {
-  id: number;
+  id: string | number;
   wallet_address: string;
   allocation: number;
   status: string;
@@ -51,12 +51,12 @@ export interface ImportResult {
 }
 
 export interface WaitlistTask {
-  id: number;
+  id: string | number;
   title: string;
   type: string; // 'Follow' | 'Like' | 'Repost' | 'Comment' | 'Join' | 'Visit' | string
   url: string;
-  required: number; // 1 or 0
-  enabled: number;  // 1 or 0
+  required: boolean | number;
+  enabled: boolean | number;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -64,9 +64,9 @@ export interface WaitlistTask {
 }
 
 export interface WaitlistTaskCompletion {
-  id: number;
+  id: string | number;
   wallet_address: string;
-  task_id: number;
+  task_id: string | number;
   status: string;
   proof_value?: string;
   verified_at: string;
@@ -74,7 +74,7 @@ export interface WaitlistTaskCompletion {
 }
 
 export interface PublicTaskItem {
-  id: number;
+  id: string | number;
   title: string;
   type: string;
   url: string;
