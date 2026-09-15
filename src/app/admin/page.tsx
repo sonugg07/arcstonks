@@ -33,7 +33,7 @@ import {
 import { WaitlistUser, EligibleWallet, AdminStats, ImportResult, WaitlistTask } from '@/lib/types';
 import { shortenAddress, isValidEvmAddress } from '@/lib/validation';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirebaseAuth, validateFirebaseConfig, FirebaseConfigValidation } from '@/lib/firebase';
+import { getFirebaseAuth, validateFirebaseConfig, FirebaseConfigValidation, getApiKeyDiagnostic } from '@/lib/firebase';
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
@@ -139,35 +139,46 @@ export default function AdminPage() {
     try {
       const auth = getFirebaseAuth();
       if (auth) {
-        unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-          if (user) {
-            const userEmail = (user.email || '').toLowerCase();
-            if (userEmail === 'sonu9888123@gmail.com') {
-              try {
-                const token = await user.getIdToken();
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem('arcstonks_admin_token', token);
+        unsubscribeAuth = onAuthStateChanged(
+          auth,
+          async (user) => {
+            if (user) {
+              const userEmail = (user.email || '').toLowerCase();
+              if (userEmail === 'sonu9888123@gmail.com') {
+                try {
+                  const token = await user.getIdToken();
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('arcstonks_admin_token', token);
+                  }
+                  await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken: token }),
+                  });
+                  setAuthenticated(true);
+                  setLoginError(null);
+                } catch (err) {
+                  console.error('Failed to sync Firebase Auth token with session', err);
                 }
-                await fetch('/api/admin/login', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ idToken: token }),
-                });
-                setAuthenticated(true);
-                setLoginError(null);
-              } catch (err) {
-                console.error('Failed to sync Firebase Auth token with session', err);
+              } else {
+                await signOut(auth);
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('arcstonks_admin_token');
+                }
+                setAuthenticated(false);
+                setLoginError(`Access Denied: ${user.email} is not authorized. Only sonu9888123@gmail.com has admin access.`);
               }
-            } else {
-              await signOut(auth);
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('arcstonks_admin_token');
-              }
-              setAuthenticated(false);
-              setLoginError(`Access Denied: ${user.email} is not authorized. Only sonu9888123@gmail.com has admin access.`);
+            }
+          },
+          (err: any) => {
+            console.warn('Firebase onAuthStateChanged error:', err);
+            const msg = err?.message || '';
+            if (err?.code === 'auth/api-key-not-valid' || msg.includes('api-key-not-valid')) {
+              const diag = getApiKeyDiagnostic();
+              setLoginError(`Firebase Auth Error (auth/api-key-not-valid): ${diag.formatNote}`);
             }
           }
-        });
+        );
       }
     } catch (e) {
       console.warn('Firebase Auth state listener setup error:', e);
@@ -428,7 +439,10 @@ export default function AdminPage() {
     } catch (err: any) {
       console.error('Admin login failed:', err);
       let msg = err.message || 'Invalid admin credentials';
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      if (err.code === 'auth/api-key-not-valid' || msg.includes('api-key-not-valid')) {
+        const diag = getApiKeyDiagnostic();
+        msg = `Firebase Auth Error (auth/api-key-not-valid): Google rejected the configured API key. [${diag.formatNote}]. In Firebase Console -> Project Settings -> General -> ArcStonks Web, copy the "apiKey" exactly and configure NEXT_PUBLIC_FIREBASE_API_KEY in Vercel.`;
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         msg = 'Invalid password for sonu9888123@gmail.com. Please check your credentials in Firebase Authentication.';
       } else if (err.code === 'auth/too-many-requests') {
         msg = 'Access temporarily disabled due to many failed attempts. Please try again later.';
@@ -709,6 +723,40 @@ export default function AdminPage() {
               <p className="text-[10px] text-slate-400">
                 Found in: Firebase Console &rarr; Project Settings &rarr; General &rarr; ArcStonks Web &rarr; apiKey. Then trigger a <strong>Redeploy</strong>.
               </p>
+            </div>
+          )}
+
+          {configValidation && configValidation.hasApiKey && !configValidation.isValidGoogleApiKey && (
+            <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs font-mono space-y-2">
+              <div className="flex items-center space-x-2 font-bold text-rose-400 uppercase tracking-wider">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>Invalid API Key Format</span>
+              </div>
+              <p className="text-slate-300 text-[11px]">
+                The configured API key does not match Google Web API key format.
+              </p>
+              <div className="bg-[#040810] p-2.5 rounded-lg border border-rose-500/30 text-[11px] space-y-1">
+                <div className="text-slate-400">Current Key Diagnostic:</div>
+                <div className="text-rose-300 font-bold">
+                  {configValidation.diagnostic.preview} ({configValidation.diagnostic.keyLength} chars)
+                </div>
+                <div className="text-slate-400 text-[10px]">{configValidation.diagnostic.formatNote}</div>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Firebase Web API keys always start with <strong>AIzaSy</strong> and are 39 characters. Update <strong>NEXT_PUBLIC_FIREBASE_API_KEY</strong> in Vercel.
+              </p>
+            </div>
+          )}
+
+          {configValidation && configValidation.hasApiKey && configValidation.isValidGoogleApiKey && (
+            <div className="p-2.5 rounded-xl bg-[#070e17] border border-cyan-500/20 text-[11px] font-mono flex items-center justify-between text-slate-400">
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <span>Project: <strong className="text-cyan-300">{configValidation.projectId}</strong></span>
+              </div>
+              <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/20">
+                Key: {configValidation.diagnostic.preview}
+              </span>
             </div>
           )}
 

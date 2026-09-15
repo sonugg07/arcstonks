@@ -3,16 +3,23 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 
 /**
- * Sanitizes environment variable values by trimming whitespace and stripping
- * accidental leading/trailing quotes (e.g. if pasted as `"AIzaSy..."` into Vercel).
+ * Sanitizes environment variable values by trimming whitespace, stripping accidental
+ * quotes, trailing commas/semicolons, or object-property prefixes (e.g. if pasted as
+ * `apiKey: "AIzaSy...",` into Vercel).
  */
-function cleanEnv(val?: string): string {
+export function cleanEnv(val?: string): string {
   if (!val || typeof val !== 'string') return '';
-  let trimmed = val.trim();
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-    trimmed = trimmed.slice(1, -1).trim();
-  }
-  return trimmed;
+  let str = val.trim();
+  // Strip key prefix if copied from JS object snippet (e.g., apiKey: "AIzaSy...")
+  str = str.replace(/^[a-zA-Z0-9_]+[:=]\s*/, '');
+  // Strip trailing comma or semicolon
+  str = str.replace(/[,;]+$/, '').trim();
+  // Strip surrounding quotes
+  str = str.replace(/^["'`]|["'`]$/g, '').trim();
+  // Strip trailing comma or semicolon again in case quotes were inside
+  str = str.replace(/[,;]+$/, '').trim();
+  str = str.replace(/^["'`]|["'`]$/g, '').trim();
+  return str;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,11 +70,66 @@ export const firebaseConfig = {
   appId,
 };
 
+/**
+ * Checks whether the configured key matches standard Google Web API key format:
+ * Exactly 39 characters, starting with "AIzaSy", followed by 33 base64url characters.
+ */
+export function isValidGoogleApiKey(key?: string): boolean {
+  if (!key) return false;
+  return /^AIzaSy[a-zA-Z0-9_-]{33}$/.test(key);
+}
+
+export interface ApiKeyDiagnostic {
+  hasKey: boolean;
+  isValidGoogleFormat: boolean;
+  keyLength: number;
+  preview: string;
+  formatNote: string;
+}
+
+/**
+ * Produces safe diagnostic information about the configured Firebase API key
+ * without leaking the full secret.
+ */
+export function getApiKeyDiagnostic(): ApiKeyDiagnostic {
+  if (!apiKey || apiKey.startsWith('AIzaSyDummy')) {
+    return {
+      hasKey: false,
+      isValidGoogleFormat: false,
+      keyLength: 0,
+      preview: 'Not configured',
+      formatNote: 'Missing NEXT_PUBLIC_FIREBASE_API_KEY in environment',
+    };
+  }
+
+  const isValidGoogleFormat = isValidGoogleApiKey(apiKey);
+  const preview = apiKey.length > 8
+    ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)}`
+    : `${apiKey.slice(0, 2)}***`;
+
+  let formatNote = 'Valid Google API Key format (starts with AIzaSy, 39 characters).';
+  if (!apiKey.startsWith('AIzaSy')) {
+    formatNote = `Malformed API key: Starts with "${apiKey.slice(0, 6)}..." instead of "AIzaSy". Firebase Web API keys must start with AIzaSy.`;
+  } else if (apiKey.length !== 39) {
+    formatNote = `Malformed API key length: ${apiKey.length} characters (expected exactly 39 characters).`;
+  }
+
+  return {
+    hasKey: true,
+    isValidGoogleFormat,
+    keyLength: apiKey.length,
+    preview,
+    formatNote,
+  };
+}
+
 export interface FirebaseConfigValidation {
   isValid: boolean;
   hasApiKey: boolean;
+  isValidGoogleApiKey: boolean;
   missingVariables: string[];
   projectId: string;
+  diagnostic: ApiKeyDiagnostic;
 }
 
 /**
@@ -76,6 +138,7 @@ export interface FirebaseConfigValidation {
  */
 export function validateFirebaseConfig(): FirebaseConfigValidation {
   const missing: string[] = [];
+  const diagnostic = getApiKeyDiagnostic();
 
   if (!apiKey || apiKey.startsWith('AIzaSyDummy')) {
     missing.push('NEXT_PUBLIC_FIREBASE_API_KEY (or VITE_FIREBASE_API_KEY)');
@@ -84,22 +147,33 @@ export function validateFirebaseConfig(): FirebaseConfigValidation {
     missing.push('NEXT_PUBLIC_FIREBASE_APP_ID (or VITE_FIREBASE_APP_ID)');
   }
 
-  const isValid = missing.length === 0;
+  const isValid = missing.length === 0 && diagnostic.isValidGoogleFormat;
 
-  if (!isValid && typeof window !== 'undefined') {
-    console.warn(
-      `%c[ArcStonks Firebase Config Notice]%c Missing environment variable(s):\n${missing.map(m => `  • ${m}`).join('\n')}\n` +
-      `Configure these in Vercel Dashboard -> Project Settings -> Environment Variables and redeploy.`,
-      'color: #f59e0b; font-weight: bold;',
-      'color: inherit;'
-    );
+  if (typeof window !== 'undefined') {
+    if (missing.length > 0) {
+      console.warn(
+        `%c[ArcStonks Firebase Config Notice]%c Missing environment variable(s):\n${missing.map(m => `  • ${m}`).join('\n')}\n` +
+        `Configure these in Vercel Dashboard -> Project Settings -> Environment Variables and redeploy.`,
+        'color: #f59e0b; font-weight: bold;',
+        'color: inherit;'
+      );
+    } else if (!diagnostic.isValidGoogleFormat) {
+      console.warn(
+        `%c[ArcStonks Firebase Key Warning]%c ${diagnostic.formatNote}\n` +
+        `Please verify NEXT_PUBLIC_FIREBASE_API_KEY in Vercel. Google Firebase Web keys start with "AIzaSy".`,
+        'color: #ef4444; font-weight: bold;',
+        'color: inherit;'
+      );
+    }
   }
 
   return {
     isValid,
     hasApiKey: Boolean(apiKey && !apiKey.startsWith('AIzaSyDummy')),
+    isValidGoogleApiKey: diagnostic.isValidGoogleFormat,
     missingVariables: missing,
     projectId,
+    diagnostic,
   };
 }
 
