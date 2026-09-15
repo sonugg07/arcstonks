@@ -11,22 +11,22 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // Designated primary root admin email
+    function isPrimaryAdminEmail() {
+      return request.auth.token.get('email_verified', false) == true &&
+             request.auth.token.get('email', '') == 'sonu9888123@gmail.com';
+    }
+    
     // REAL ADMIN AUTHORIZATION MECHANISM:
     // A user is ONLY recognized as an admin if:
     // 1. They have the custom claim `admin: true` in their token (set via Firebase Admin SDK)
-    // 2. OR their email is verified and explicitly in the admin email allowlist
+    // 2. OR their email is verified and is the designated admin: sonu9888123@gmail.com
     // 3. OR an authorized admin document exists in the private `/admins` collection
     // (Normal authenticated users will evaluate to FALSE)
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.get('admin', false) == true ||
-        (
-          request.auth.token.get('email_verified', false) == true &&
-          request.auth.token.get('email', '') in [
-            'admin@arcstonks.com',
-            'arcstonks@gmail.com'
-          ]
-        ) ||
+        isPrimaryAdminEmail() ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -39,10 +39,18 @@ service cloud.firestore {
     // =========================================================================
     // 1. ADMINS COLLECTION (System Internal Access Control)
     // =========================================================================
-    // Stores authorized admin UIDs. Self-assignment is blocked.
+    // Stores authorized admin UIDs.
+    // - Any authenticated admin can read/write this collection.
+    // - Initial Bootstrap: The verified primary admin (sonu9888123@gmail.com) can self-register
+    //   their own UID into /admins without requiring a pre-existing admin.
+    // - Random users cannot create or modify admin records.
     match /admins/{adminUid} {
       allow read: if isAuthenticated() && (request.auth.uid == adminUid || isAdmin());
-      allow write: if isAdmin();
+      allow write: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid == adminUid &&
+        isPrimaryAdminEmail()
+      );
     }
     
     // =========================================================================

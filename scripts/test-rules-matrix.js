@@ -12,7 +12,7 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'arcstonks_super_secret_jwt_key_999444';
 const PROJECT_ID = 'arcstonks';
-const ADMIN_EMAILS = ['admin@arcstonks.com', 'arcstonks@gmail.com'];
+const ADMIN_EMAILS = ['sonu9888123@gmail.com'];
 
 // Helper to simulate Firestore rule evaluation
 function simulateFirestoreRules(authContext, operation, collection, docId, data, existingData) {
@@ -211,14 +211,14 @@ async function runTests() {
     token: {
       aud: PROJECT_ID,
       iss: `https://securetoken.google.com/${PROJECT_ID}`,
-      email: 'admin@arcstonks.com', // Spoofed email without verification
+      email: 'sonu9888123@gmail.com', // Spoofed email without verification
       email_verified: false,
       admin: false,
     },
     isInAdminsCollection: false,
   };
   const attackerToken = jwt.sign(
-    { aud: PROJECT_ID, iss: `https://securetoken.google.com/${PROJECT_ID}`, email: 'admin@arcstonks.com', email_verified: false, exp: Math.floor(Date.now() / 1000) + 3600 },
+    { aud: PROJECT_ID, iss: `https://securetoken.google.com/${PROJECT_ID}`, email: 'sonu9888123@gmail.com', email_verified: false, exp: Math.floor(Date.now() / 1000) + 3600 },
     'fake_key',
     { algorithm: 'none' }
   );
@@ -227,21 +227,21 @@ async function runTests() {
   assert('Attacker: Modify /admins collection BLOCKED', simulateFirestoreRules(attackerUser, 'create', 'admins', attackerUser.uid), false);
   assert('Attacker: Backend /api/admin/* access BLOCKED', verifyAdminSession(attackerToken), false);
 
-  // --- PERSONA 4: Authorized Admin ---
-  console.log('\n--- PERSONA 4: Authorized Admin ---');
+  // --- PERSONA 4: Authorized Admin (sonu9888123@gmail.com) ---
+  console.log('\n--- PERSONA 4: Authorized Admin (sonu9888123@gmail.com) ---');
   const adminWithClaim = {
     uid: 'admin_verified_01',
     token: {
       aud: PROJECT_ID,
       iss: `https://securetoken.google.com/${PROJECT_ID}`,
-      email: 'admin@arcstonks.com',
+      email: 'sonu9888123@gmail.com',
       email_verified: true,
       admin: true,
     },
     isInAdminsCollection: true,
   };
   const adminTokenWithClaim = jwt.sign(
-    { aud: PROJECT_ID, iss: `https://securetoken.google.com/${PROJECT_ID}`, email: 'admin@arcstonks.com', email_verified: true, admin: true, exp: Math.floor(Date.now() / 1000) + 3600 },
+    { aud: PROJECT_ID, iss: `https://securetoken.google.com/${PROJECT_ID}`, email: 'sonu9888123@gmail.com', email_verified: true, admin: true, exp: Math.floor(Date.now() / 1000) + 3600 },
     'fake_key',
     { algorithm: 'none' }
   );

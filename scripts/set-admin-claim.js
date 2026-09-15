@@ -16,14 +16,7 @@ const path = require('path');
 const admin = require('firebase-admin');
 
 async function setAdminClaim() {
-  const targetUser = process.argv[2] || process.env.ADMIN_TARGET_USER;
-
-  if (!targetUser) {
-    console.log('=== ArcStonks Admin Setup ===');
-    console.log('Usage: node scripts/set-admin-claim.js <admin-email-or-uid>');
-    console.log('\nExample: node scripts/set-admin-claim.js admin@arcstonks.com');
-    process.exit(1);
-  }
+  const targetUser = process.argv[2] || process.env.ADMIN_TARGET_USER || 'sonu9888123@gmail.com';
 
   // Look for service account key in common locations
   const possibleKeyPaths = [

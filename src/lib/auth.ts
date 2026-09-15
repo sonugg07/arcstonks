@@ -43,7 +43,7 @@ export function verifyAdminSession(request: NextRequest): boolean {
     process.env.FIREBASE_PROJECT_ID ||
     'arcstonks';
 
-  const adminEmails = (process.env.ADMIN_EMAILS || 'admin@arcstonks.com')
+  const adminEmails = (process.env.ADMIN_EMAILS || 'sonu9888123@gmail.com')
     .split(',')
     .map(e => e.trim().toLowerCase());
 
