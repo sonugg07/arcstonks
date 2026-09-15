@@ -20,7 +20,7 @@ service cloud.firestore {
     // REAL ADMIN AUTHORIZATION MECHANISM:
     // A user is ONLY recognized as an admin if:
     // 1. They have the custom claim `admin: true` in their token (set via Firebase Admin SDK)
-    // 2. OR their email is verified and is the designated admin: sonu9888123@gmail.com
+    // 2. OR their authenticated email is the designated admin: sonu9888123@gmail.com
     // 3. OR an authorized admin document exists in the private `/admins` collection
     // (Normal authenticated users will evaluate to FALSE)
     function isAdmin() {

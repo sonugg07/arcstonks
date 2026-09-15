@@ -27,15 +27,21 @@ import {
   Database,
   FileText,
   ListTodo,
+  Mail,
+  UserCheck,
 } from 'lucide-react';
 import { WaitlistUser, EligibleWallet, AdminStats, ImportResult, WaitlistTask } from '@/lib/types';
 import { shortenAddress, isValidEvmAddress } from '@/lib/validation';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [adminEmail, setAdminEmail] = useState('sonu9888123@gmail.com');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<'firebase' | 'password'>('firebase');
 
   // Tabs: 'waitlist' | 'eligible' | 'tasks' | 'settings'
   const [activeTab, setActiveTab] = useState<'waitlist' | 'eligible' | 'tasks' | 'settings'>('waitlist');
@@ -125,7 +131,49 @@ export default function AdminPage() {
   }, [authFetch]);
 
   useEffect(() => {
+    let unsubscribeAuth: (() => void) | undefined;
+    try {
+      const auth = getFirebaseAuth();
+      if (auth) {
+        unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            const userEmail = (user.email || '').toLowerCase();
+            if (userEmail === 'sonu9888123@gmail.com') {
+              try {
+                const token = await user.getIdToken();
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('arcstonks_admin_token', token);
+                }
+                await fetch('/api/admin/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ idToken: token }),
+                });
+                setAuthenticated(true);
+                setLoginError(null);
+              } catch (err) {
+                console.error('Failed to sync Firebase Auth token with session', err);
+              }
+            } else {
+              await signOut(auth);
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('arcstonks_admin_token');
+              }
+              setAuthenticated(false);
+              setLoginError(`Access Denied: ${user.email} is not authorized. Only sonu9888123@gmail.com has admin access.`);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Firebase Auth state listener setup error:', e);
+    }
+
     checkAuth();
+
+    return () => {
+      if (unsubscribeAuth) unsubscribeAuth();
+    };
   }, [checkAuth]);
 
   // Fetch Stats
@@ -324,26 +372,80 @@ export default function AdminPage() {
     setLoginLoading(true);
 
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
+      if (authMode === 'firebase') {
+        const auth = getFirebaseAuth();
+        if (!auth) {
+          throw new Error('Firebase Auth is not available. Please verify your Firebase environment variables.');
+        }
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        const email = adminEmail.trim().toLowerCase();
+        if (email !== 'sonu9888123@gmail.com') {
+          throw new Error('Access Denied: Only sonu9888123@gmail.com is authorized to access the ArcStonks admin console.');
+        }
+
+        // 1. Authenticate with Firebase Authentication
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        if ((user.email || '').toLowerCase() !== 'sonu9888123@gmail.com') {
+          await signOut(auth);
+          throw new Error('Access Denied: Unauthorized account.');
+        }
+
+        // 2. Obtain Firebase ID Token
+        const idToken = await user.getIdToken();
+
+        // 3. Send ID Token to Next.js server to establish secure session cookie
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Server rejected administrative session');
+        }
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('arcstonks_admin_token', idToken);
+        }
+
+        setAuthenticated(true);
+        setPassword('');
+        fetchStats();
+        fetchWaitlist();
+      } else {
+        // Fallback Master Password Mode
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+
+        if (data.token && typeof window !== 'undefined') {
+          localStorage.setItem('arcstonks_admin_token', data.token);
+        }
+
+        setAuthenticated(true);
+        setPassword('');
+        fetchStats();
+        fetchWaitlist();
       }
-
-      if (data.token && typeof window !== 'undefined') {
-        localStorage.setItem('arcstonks_admin_token', data.token);
-      }
-
-      setAuthenticated(true);
-      fetchStats();
-      fetchWaitlist();
     } catch (err: any) {
-      setLoginError(err.message || 'Invalid admin credentials');
+      console.error('Admin login failed:', err);
+      let msg = err.message || 'Invalid admin credentials';
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        msg = 'Invalid password for sonu9888123@gmail.com. Please check your credentials in Firebase Authentication.';
+      } else if (err.code === 'auth/too-many-requests') {
+        msg = 'Access temporarily disabled due to many failed attempts. Please try again later.';
+      }
+      setLoginError(msg);
     } finally {
       setLoginLoading(false);
     }
@@ -351,6 +453,14 @@ export default function AdminPage() {
 
   // Logout handler
   const handleLogout = async () => {
+    try {
+      const auth = getFirebaseAuth();
+      if (auth) {
+        await signOut(auth);
+      }
+    } catch (err) {
+      console.warn('Firebase signOut error:', err);
+    }
     if (typeof window !== 'undefined') {
       localStorage.removeItem('arcstonks_admin_token');
     }
@@ -584,28 +694,102 @@ export default function AdminPage() {
             </p>
           </div>
 
+          {/* Auth Method Switch */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-[#070e17] rounded-xl border border-cyan-500/20 text-xs font-mono">
+            <button
+              type="button"
+              onClick={() => { setAuthMode('firebase'); setLoginError(null); }}
+              className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all ${
+                authMode === 'firebase'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Firebase Auth</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('password'); setLoginError(null); }}
+              className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all ${
+                authMode === 'password'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Master Key</span>
+            </button>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
-                Admin Password
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter administrative password"
-                  required
-                  className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                />
-                <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
+            {authMode === 'firebase' ? (
+              <>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
+                      Authorized Admin Email
+                    </label>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-400">
+                      Root Admin
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="sonu9888123@gmail.com"
+                      required
+                      className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                    />
+                    <Mail className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-500">
+                    Only <span className="text-cyan-400">sonu9888123@gmail.com</span> is granted admin privileges.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
+                    Firebase Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter Firebase account password"
+                      required
+                      className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                    />
+                    <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
+                  Admin Master Password
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter server admin password"
+                    required
+                    className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                  />
+                  <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
+                </div>
               </div>
-            </div>
+            )}
 
             {loginError && (
-              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{loginError}</span>
+              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span className="break-words">{loginError}</span>
               </div>
             )}
 
@@ -619,14 +803,20 @@ export default function AdminPage() {
               ) : (
                 <>
                   <Unlock className="w-4 h-4" />
-                  <span>Access Terminal</span>
+                  <span>{authMode === 'firebase' ? 'Sign In with Firebase Auth' : 'Access Terminal'}</span>
                 </>
               )}
             </button>
           </form>
 
           <div className="pt-2 border-t border-cyan-500/10 flex justify-between items-center text-[11px] font-mono text-slate-400">
-            <span>Admin Password: <code className="text-cyan-400">arcstonks@9888</code></span>
+            <span>
+              {authMode === 'firebase' ? (
+                <span>Firebase: <code className="text-cyan-400">arcstonks</code></span>
+              ) : (
+                <span>Admin Key: <code className="text-cyan-400">arcstonks@9888</code></span>
+              )}
+            </span>
             <Link href="/" className="text-slate-400 hover:text-cyan-300 flex items-center space-x-1">
               <span>Back to Site</span>
               <ExternalLink className="w-3 h-3" />
@@ -660,6 +850,14 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center space-x-3">
+            <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-cyan-950/40 border border-cyan-500/20 text-xs font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-slate-400">Admin:</span>
+              <span className="text-cyan-300 font-bold">sonu9888123@gmail.com</span>
+              <span className="text-slate-600">|</span>
+              <span className="text-teal-400">Firestore</span>
+            </div>
+
             <Link
               href="/"
               target="_blank"

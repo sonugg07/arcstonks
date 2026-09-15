@@ -60,7 +60,6 @@ export function verifyAdminSession(request: NextRequest): boolean {
         // STRICT SECURITY: Do NOT treat every authenticated user as an admin!
         // Must possess either:
         // A) Custom claim: admin == true
-        // B) Verified email matching configured admin allowlist
         const hasAdminClaim = decoded.admin === true;
         const isAllowlistedEmail = Boolean(
           decoded.email &&
