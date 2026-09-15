@@ -2,46 +2,133 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function: check if user is authenticated via Firebase Auth
+    // =========================================================================
+    // HELPER FUNCTIONS & AUTHORIZATION
+    // =========================================================================
+    
+    // Check if the request is from an authenticated Firebase user
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Helper function: admin check (any authenticated Firebase user in the arcstonks project)
+    // REAL ADMIN AUTHORIZATION MECHANISM:
+    // A user is ONLY recognized as an admin if:
+    // 1. They have the custom claim `admin: true` in their token (set via Firebase Admin SDK)
+    // 2. OR their email is verified and explicitly in the admin email allowlist
+    // 3. OR an authorized admin document exists in the private `/admins` collection
+    // (Normal authenticated users will evaluate to FALSE)
     function isAdmin() {
-      return isAuthenticated();
+      return isAuthenticated() && (
+        request.auth.token.get('admin', false) == true ||
+        (
+          request.auth.token.get('email_verified', false) == true &&
+          request.auth.token.get('email', '') in [
+            'admin@arcstonks.com',
+            'arcstonks@gmail.com'
+          ]
+        ) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
     
-    // site_settings: Publicly readable; Only admin can modify
+    // Format validation: 42-character EVM hexadecimal address (0x...)
+    function isValidEvmAddress(addr) {
+      return addr is string && addr.matches('^0x[a-fA-F0-9]{40}$');
+    }
+
+    // =========================================================================
+    // 1. ADMINS COLLECTION (System Internal Access Control)
+    // =========================================================================
+    // Stores authorized admin UIDs. Self-assignment is blocked.
+    match /admins/{adminUid} {
+      allow read: if isAuthenticated() && (request.auth.uid == adminUid || isAdmin());
+      allow write: if isAdmin();
+    }
+    
+    // =========================================================================
+    // 2. SITE SETTINGS (Waitlist & Checker ON/OFF toggles)
+    // =========================================================================
+    // Public users can read toggles to adapt UI. Only authorized admins can change them.
     match /site_settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
     
-    // waitlist_tasks: Publicly readable; Only admin can create, update, or delete
+    // =========================================================================
+    // 3. WAITLIST TASKS (Social action tasks)
+    // =========================================================================
+    // Public users can view active tasks. Only authorized admins can create, update, or delete.
     match /waitlist_tasks/{taskId} {
       allow read: if true;
       allow write: if isAdmin();
     }
     
-    // eligible_wallets: Publicly readable (required by wallet checker); Only admin can modify or import
+    // =========================================================================
+    // 4. ELIGIBLE WALLETS (Whitelist Checker & Allocations)
+    // =========================================================================
+    // - Public users can check a single wallet address (get).
+    // - Full whitelist listing/scraping (list) is strictly admin-only.
+    // - All writes (create, update, delete) are strictly admin-only.
     match /eligible_wallets/{walletAddress} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
     
-    // waitlist_users: Anyone can check their own wallet (get); Only admin can list all wallets (list)
+    // =========================================================================
+    // 5. WAITLIST USERS (Public Waitlist Registrations)
+    // =========================================================================
+    // - Public can check if their individual wallet is registered (get).
+    // - Full waitlist list scraping (list) is strictly admin-only.
+    // - Public can create a single registration only with strict validation.
+    // - Public CANNOT update or delete existing registrations (prevents wallet hijacking).
+    // - Document ID must match the lowercase wallet address.
     match /waitlist_users/{walletAddress} {
       allow get: if true;
       allow list: if isAdmin();
-      allow create: if true;
-      allow update, delete: if isAdmin();
+      
+      allow create: if isValidEvmAddress(walletAddress) &&
+        isValidEvmAddress(request.resource.data.wallet_address) &&
+        request.resource.data.wallet_address_lower == walletAddress.lower() &&
+        request.resource.data.wallet_address.lower() == walletAddress.lower() &&
+        request.resource.data.wallet_address.size() == 42 &&
+        (!('x_handle' in request.resource.data) || 
+          request.resource.data.x_handle == null || 
+          (request.resource.data.x_handle is string && request.resource.data.x_handle.size() <= 50)) &&
+        (!('ip_hash' in request.resource.data) || 
+          request.resource.data.ip_hash == null || 
+          (request.resource.data.ip_hash is string && request.resource.data.ip_hash.size() <= 100)) &&
+        ('created_at' in request.resource.data && request.resource.data.created_at is string);
+        
+      allow update: if isAdmin() && 
+        request.resource.data.wallet_address.lower() == resource.data.wallet_address.lower();
+        
+      allow delete: if isAdmin();
     }
     
-    // waitlist_task_completions: Public can record task verification; Admin can manage
+    // =========================================================================
+    // 6. WAITLIST TASK COMPLETIONS (User Task Verification Records)
+    // =========================================================================
+    // - Public can check a completion record (get).
+    // - Listing all completions is strictly admin-only.
+    // - Public can record completions only through the intended schema.
+    // - Public CANNOT update or delete existing completions (tamper-proof).
+    // - Composite key {wallet_lower}_{task_id} guarantees 1 completion per task per wallet.
     match /waitlist_task_completions/{completionId} {
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow get: if true;
+      allow list: if isAdmin();
+      
+      allow create: if isValidEvmAddress(request.resource.data.wallet_address) &&
+        request.resource.data.task_id is string &&
+        request.resource.data.task_id.size() > 0 &&
+        request.resource.data.task_id.size() <= 100 &&
+        request.resource.data.status == 'completed' &&
+        completionId == request.resource.data.wallet_address_lower + '_' + request.resource.data.task_id &&
+        (!('proof_value' in request.resource.data) || 
+          request.resource.data.proof_value == null || 
+          (request.resource.data.proof_value is string && request.resource.data.proof_value.size() <= 200));
+        
+      allow update, delete: if isAdmin();
     }
   }
 }

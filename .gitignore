@@ -17,6 +17,10 @@ yarn-error.log*
 *.db-wal
 *.db-shm
 
+# Firebase Service Account Credentials (NEVER COMMIT)
+*serviceAccount*.json
+serviceAccountKey.json
+
 # OS
 .DS_Store
 Thumbs.db

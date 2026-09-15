@@ -28,7 +28,7 @@ export function signAdminToken(): string {
 
 /**
  * Verifies admin session from cookie or authorization header.
- * Supports both Firebase Auth ID tokens and ArcStonks Admin JWT tokens.
+ * Supports both Firebase Auth ID tokens (with admin claim/allowlist) and ArcStonks Admin JWT tokens.
  */
 export function verifyAdminSession(request: NextRequest): boolean {
   const token =
@@ -43,7 +43,11 @@ export function verifyAdminSession(request: NextRequest): boolean {
     process.env.FIREBASE_PROJECT_ID ||
     'arcstonks';
 
-  // 1. Try decoding as Firebase Auth ID token
+  const adminEmails = (process.env.ADMIN_EMAILS || 'admin@arcstonks.com')
+    .split(',')
+    .map(e => e.trim().toLowerCase());
+
+  // 1. Try validating as Firebase Auth ID token
   try {
     const decoded: any = jwt.decode(token);
     if (decoded && typeof decoded === 'object') {
@@ -53,11 +57,27 @@ export function verifyAdminSession(request: NextRequest): boolean {
         decoded.aud === projectId;
 
       if (isFirebaseToken) {
+        // STRICT SECURITY: Do NOT treat every authenticated user as an admin!
+        // Must possess either:
+        // A) Custom claim: admin == true
+        // B) Verified email matching configured admin allowlist
+        const hasAdminClaim = decoded.admin === true;
+        const isAllowlistedEmail = Boolean(
+          decoded.email &&
+          decoded.email_verified === true &&
+          adminEmails.includes(decoded.email.toLowerCase())
+        );
+
+        if (!hasAdminClaim && !isAllowlistedEmail) {
+          return false;
+        }
+
         // Check expiration
         const nowSec = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp > nowSec) {
           return true;
         }
+        return false;
       }
     }
   } catch {}
