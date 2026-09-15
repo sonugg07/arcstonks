@@ -164,6 +164,11 @@ function initSchema() {
     database.exec('CREATE INDEX IF NOT EXISTS idx_task_comp_proof ON waitlist_task_completions(proof_value, task_id);');
   } catch {}
 
+  // Migrate legacy twitter.com task URLs to x.com/arcstonks
+  try {
+    database.exec("UPDATE waitlist_tasks SET url = 'https://x.com/arcstonks' WHERE url LIKE '%twitter.com/ArcStonks%' OR url LIKE '%twitter.com%';");
+  } catch {}
+
   // Ensure default site_settings exists
   const existing = database.prepare('SELECT id FROM site_settings WHERE id = 1').get();
   if (!existing) {
@@ -184,7 +189,7 @@ function initSchema() {
         {
           title: 'Follow ArcStonks on X',
           type: 'Follow',
-          url: 'https://twitter.com/ArcStonks',
+          url: 'https://x.com/arcstonks',
           required: 1,
           enabled: 1,
           display_order: 1,
@@ -192,7 +197,7 @@ function initSchema() {
         {
           title: 'Like our announcement',
           type: 'Like',
-          url: 'https://twitter.com/ArcStonks/status/123456789',
+          url: 'https://x.com/arcstonks',
           required: 1,
           enabled: 1,
           display_order: 2,
@@ -200,7 +205,7 @@ function initSchema() {
         {
           title: 'Repost our announcement',
           type: 'Repost',
-          url: 'https://twitter.com/ArcStonks/status/123456789',
+          url: 'https://x.com/arcstonks',
           required: 1,
           enabled: 1,
           display_order: 3,
@@ -208,7 +213,7 @@ function initSchema() {
         {
           title: 'Comment on our announcement',
           type: 'Comment',
-          url: 'https://twitter.com/ArcStonks/status/123456789',
+          url: 'https://x.com/arcstonks',
           required: 1,
           enabled: 1,
           display_order: 4,

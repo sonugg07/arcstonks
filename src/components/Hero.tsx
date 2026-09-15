@@ -79,14 +79,24 @@ export default function Hero() {
 
             {/* Social / Ecosystem Badges */}
             <div className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-5 text-xs font-mono text-slate-400">
-              <span className="flex items-center space-x-1.5 hover:text-cyan-300 transition-colors">
+              <a
+                href="https://x.com/arcstonks"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1.5 hover:text-cyan-300 transition-colors"
+              >
                 <span className="text-cyan-400 font-bold">X</span>
                 <span>/ Twitter</span>
+              </a>
+              <span className="text-slate-700">•</span>
+              <span className="flex items-center space-x-1.5 text-slate-400 cursor-default">
+                <span className="text-cyan-400 font-bold">DISCORD</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/20 text-cyan-400">Coming Soon</span>
               </span>
               <span className="text-slate-700">•</span>
-              <span className="flex items-center space-x-1.5 hover:text-cyan-300 transition-colors">
-                <span className="text-cyan-400 font-bold">DISCORD</span>
-                <span>Community</span>
+              <span className="flex items-center space-x-1.5 text-slate-400 cursor-default">
+                <span className="text-cyan-400 font-bold">TELEGRAM</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/20 text-cyan-400">Coming Soon</span>
               </span>
               <span className="text-slate-700">•</span>
               <span className="flex items-center space-x-1.5 hover:text-cyan-300 transition-colors">

@@ -74,7 +74,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="https://twitter.com"
+                  href="https://x.com/arcstonks"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-cyan-400 transition-colors flex items-center space-x-1.5"
@@ -84,26 +84,20 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a
-                  href="https://discord.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-cyan-400 transition-colors flex items-center space-x-1.5"
-                >
+                <div className="text-slate-400 flex items-center space-x-2 cursor-default">
                   <span>Discord Community</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-cyan-950/60 border border-cyan-500/30 text-cyan-400">
+                    Coming Soon
+                  </span>
+                </div>
               </li>
               <li>
-                <a
-                  href="https://telegram.org"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-cyan-400 transition-colors flex items-center space-x-1.5"
-                >
+                <div className="text-slate-400 flex items-center space-x-2 cursor-default">
                   <span>Telegram Channel</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-cyan-950/60 border border-cyan-500/30 text-cyan-400">
+                    Coming Soon
+                  </span>
+                </div>
               </li>
               <li className="pt-2">
                 <Link
