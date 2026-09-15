@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Milestone, CheckCircle2, Clock, Zap, Rocket, Compass, Layers } from 'lucide-react';
+import { Milestone, CheckCircle2, Clock, Zap, Rocket, Compass, Layers, Sparkles } from 'lucide-react';
 
 export default function Roadmap() {
   const phases = [
@@ -30,6 +30,7 @@ export default function Roadmap() {
         'Transparent metadata & artwork reveal',
         'Community growth & partner initiatives',
         'Early holder-focused initiatives and roles',
+        'Surprise coming soon',
       ],
     },
     {
@@ -60,6 +61,19 @@ export default function Roadmap() {
     },
     {
       phase: 'Phase 5',
+      title: 'New Phase',
+      status: 'Planned',
+      active: false,
+      icon: <Sparkles className="w-5 h-5 text-teal-300" />,
+      items: [
+        'Community governance & DAO initiatives',
+        'Ecosystem collaborations & partner integration',
+        'Exclusive holder perks & reward programs',
+        'Surprise ecosystem developments reveal',
+      ],
+    },
+    {
+      phase: 'Phase 6',
       title: 'Long-Term Vision',
       status: 'Vision',
       active: false,
@@ -148,7 +162,7 @@ export default function Roadmap() {
 
               {/* Card Footer */}
               <div className="pt-3 border-t border-cyan-500/10 flex items-center justify-between font-mono text-[11px] text-slate-400">
-                <span>STAGE {idx + 1} OF 5</span>
+                <span>STAGE {idx + 1} OF {phases.length}</span>
                 <span className={p.active ? 'text-cyan-300 font-bold' : ''}>
                   {p.active ? '● IN PROGRESS' : '○ QUEUED'}
                 </span>
