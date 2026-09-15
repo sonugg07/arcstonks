@@ -116,17 +116,27 @@ export default function CommunityTasks({
     });
   }, [tasks, onTasksUpdated]);
 
+function formatTaskUrl(url?: string): string {
+  if (!url || !url.trim()) {
+    return 'https://x.com/arcstonks';
+  }
+  let clean = url.trim();
+  if (!/^https?:\/\//i.test(clean)) {
+    clean = `https://${clean}`;
+  }
+  if (clean.includes('123456789') || clean.includes('bytewave01') || clean.includes('twitter.com/ArcStonks')) {
+    return 'https://x.com/arcstonks';
+  }
+  return clean;
+}
+
   // Handle clicking task action link
   const handleActionClick = (task: PublicTaskItem) => {
-    // Open task URL
-    if (task.url) {
-      window.open(task.url, '_blank', 'noopener,noreferrer');
-    }
-    // Mark as started with timestamp and 4s cooldown
+    // Mark as started with timestamp and 3s cooldown
     const now = Date.now();
     setStartedTasks(prev => ({ ...prev, [task.id]: true }));
     setActionTimestamps(prev => ({ ...prev, [task.id]: now }));
-    setCountdowns(prev => ({ ...prev, [task.id]: 4 }));
+    setCountdowns(prev => ({ ...prev, [task.id]: 3 }));
     setErrorMsg(null);
   };
 
@@ -342,20 +352,33 @@ export default function CommunityTasks({
               }`}
             >
               {/* Task Title & Details */}
-              <div className="flex items-start sm:items-center space-x-3">
+              <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
                 <span className="font-mono text-xs font-bold text-slate-500 pt-0.5 sm:pt-0">
                   {formattedIdx}
                 </span>
 
-                <div className="p-2 rounded-lg bg-black/50 border border-cyan-500/20">
+                <a
+                  href={formatTaskUrl(task.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handleActionClick(task)}
+                  className="p-2 rounded-lg bg-black/50 border border-cyan-500/20 hover:border-cyan-400/50 hover:bg-cyan-950/40 transition-colors cursor-pointer flex-shrink-0"
+                  title="Open on X"
+                >
                   {getTaskIcon(task.type)}
-                </div>
+                </a>
 
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs sm:text-sm font-semibold text-white">
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-2 flex-wrap">
+                    <a
+                      href={formatTaskUrl(task.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => handleActionClick(task)}
+                      className="text-xs sm:text-sm font-semibold text-white hover:text-cyan-300 transition-colors cursor-pointer"
+                    >
                       {task.title}
-                    </span>
+                    </a>
                     {task.required ? (
                       <span className="px-1.5 py-0.2 rounded bg-cyan-950/80 border border-cyan-500/40 text-[9px] font-mono text-cyan-300 font-bold uppercase">
                         Required
@@ -366,7 +389,7 @@ export default function CommunityTasks({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2 mt-0.5">
+                  <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
                     <span className="text-[11px] font-mono text-slate-400">
                       Action Type: <strong className="text-cyan-400">{task.type}</strong>
                     </span>
@@ -388,15 +411,17 @@ export default function CommunityTasks({
                   </div>
                 ) : (
                   <>
-                    {/* Step 1: Open/Perform Action */}
-                    <button
-                      type="button"
+                    {/* Step 1: Open/Perform Action (Native anchor tag so taps always open X) */}
+                    <a
+                      href={formatTaskUrl(task.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={() => handleActionClick(task)}
-                      className="px-3 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 hover:text-white transition-all flex items-center space-x-1"
+                      className="px-3 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 hover:text-white transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95"
                     >
                       <span>{task.type} on X</span>
                       <ExternalLink className="w-3 h-3 text-cyan-400" />
-                    </button>
+                    </a>
 
                     {/* Step 2: Verify Action */}
                     <button

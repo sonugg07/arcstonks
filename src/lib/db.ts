@@ -164,9 +164,9 @@ function initSchema() {
     database.exec('CREATE INDEX IF NOT EXISTS idx_task_comp_proof ON waitlist_task_completions(proof_value, task_id);');
   } catch {}
 
-  // Migrate legacy twitter.com task URLs to x.com/arcstonks
+  // Migrate legacy, dummy and stale task URLs to x.com/arcstonks
   try {
-    database.exec("UPDATE waitlist_tasks SET url = 'https://x.com/arcstonks' WHERE url LIKE '%twitter.com/ArcStonks%' OR url LIKE '%twitter.com%';");
+    database.exec("UPDATE waitlist_tasks SET url = 'https://x.com/arcstonks' WHERE url LIKE '%123456789%' OR url LIKE '%bytewave01%' OR url LIKE '%twitter.com%';");
   } catch {}
 
   // Ensure default site_settings exists
@@ -566,6 +566,15 @@ export function getTaskCompletions(taskId: number, limit = 50): { id: number; wa
   `).all(taskId, limit) as { id: number; wallet_address: string; proof_value?: string; verified_at: string }[];
 }
 
+export function normalizeTaskUrl(rawUrl?: string): string {
+  let url = (rawUrl || '').trim();
+  if (!url) return 'https://x.com/arcstonks';
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+  return url;
+}
+
 export function createTask(data: {
   title: string;
   type: string;
@@ -575,13 +584,14 @@ export function createTask(data: {
   display_order?: number;
 }): WaitlistTask {
   const d = getDb();
+  const cleanUrl = normalizeTaskUrl(data.url);
   const result = d.prepare(`
     INSERT INTO waitlist_tasks (title, type, url, required, enabled, display_order, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `).run(
     data.title.trim(),
     data.type.trim(),
-    data.url.trim(),
+    cleanUrl,
     data.required ? 1 : 0,
     data.enabled !== undefined ? (data.enabled ? 1 : 0) : 1,
     data.display_order !== undefined ? data.display_order : 0
@@ -604,7 +614,7 @@ export function updateTask(id: number, data: Partial<{
 
   const newTitle = data.title !== undefined ? data.title.trim() : existing.title;
   const newType = data.type !== undefined ? data.type.trim() : existing.type;
-  const newUrl = data.url !== undefined ? data.url.trim() : existing.url;
+  const newUrl = data.url !== undefined ? normalizeTaskUrl(data.url) : existing.url;
   const newRequired = data.required !== undefined ? (data.required ? 1 : 0) : existing.required;
   const newEnabled = data.enabled !== undefined ? (data.enabled ? 1 : 0) : existing.enabled;
   const newOrder = data.display_order !== undefined ? data.display_order : existing.display_order;
