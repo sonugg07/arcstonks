@@ -41,7 +41,6 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<'firebase' | 'password'>('firebase');
 
   // Tabs: 'waitlist' | 'eligible' | 'tasks' | 'settings'
   const [activeTab, setActiveTab] = useState<'waitlist' | 'eligible' | 'tasks' | 'settings'>('waitlist');
@@ -372,71 +371,48 @@ export default function AdminPage() {
     setLoginLoading(true);
 
     try {
-      if (authMode === 'firebase') {
-        const auth = getFirebaseAuth();
-        if (!auth) {
-          throw new Error('Firebase Auth is not available. Please verify your Firebase environment variables.');
-        }
-
-        const email = adminEmail.trim().toLowerCase();
-        if (email !== 'sonu9888123@gmail.com') {
-          throw new Error('Access Denied: Only sonu9888123@gmail.com is authorized to access the ArcStonks admin console.');
-        }
-
-        // 1. Authenticate with Firebase Authentication
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        if ((user.email || '').toLowerCase() !== 'sonu9888123@gmail.com') {
-          await signOut(auth);
-          throw new Error('Access Denied: Unauthorized account.');
-        }
-
-        // 2. Obtain Firebase ID Token
-        const idToken = await user.getIdToken();
-
-        // 3. Send ID Token to Next.js server to establish secure session cookie
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Server rejected administrative session');
-        }
-
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('arcstonks_admin_token', idToken);
-        }
-
-        setAuthenticated(true);
-        setPassword('');
-        fetchStats();
-        fetchWaitlist();
-      } else {
-        // Fallback Master Password Mode
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Authentication failed');
-        }
-
-        if (data.token && typeof window !== 'undefined') {
-          localStorage.setItem('arcstonks_admin_token', data.token);
-        }
-
-        setAuthenticated(true);
-        setPassword('');
-        fetchStats();
-        fetchWaitlist();
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        throw new Error('Firebase Auth is not available. Please verify your Firebase environment variables.');
       }
+
+      const email = adminEmail.trim().toLowerCase();
+      if (email !== 'sonu9888123@gmail.com') {
+        throw new Error('Access Denied: Only sonu9888123@gmail.com is authorized to access the ArcStonks admin console.');
+      }
+
+      // 1. Authenticate with Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if ((user.email || '').toLowerCase() !== 'sonu9888123@gmail.com') {
+        await signOut(auth);
+        throw new Error('Access Denied: Unauthorized account.');
+      }
+
+      // 2. Obtain Firebase ID Token
+      const idToken = await user.getIdToken();
+
+      // 3. Send ID Token to Next.js server to establish secure session cookie
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Server rejected administrative session');
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('arcstonks_admin_token', idToken);
+      }
+
+      setAuthenticated(true);
+      setPassword('');
+      fetchStats();
+      fetchWaitlist();
     } catch (err: any) {
       console.error('Admin login failed:', err);
       let msg = err.message || 'Invalid admin credentials';
@@ -694,97 +670,53 @@ export default function AdminPage() {
             </p>
           </div>
 
-          {/* Auth Method Switch */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-[#070e17] rounded-xl border border-cyan-500/20 text-xs font-mono">
-            <button
-              type="button"
-              onClick={() => { setAuthMode('firebase'); setLoginError(null); }}
-              className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all ${
-                authMode === 'firebase'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Firebase Auth</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setAuthMode('password'); setLoginError(null); }}
-              className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all ${
-                authMode === 'password'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Master Key</span>
-            </button>
+          <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs font-mono flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <span className="text-slate-300">Firebase Authentication</span>
+            </div>
+            <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-[10px] text-emerald-400 font-bold">
+              Root Admin
+            </span>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            {authMode === 'firebase' ? (
-              <>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
-                      Authorized Admin Email
-                    </label>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-400">
-                      Root Admin
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                      placeholder="sonu9888123@gmail.com"
-                      required
-                      className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                    />
-                    <Mail className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
-                  </div>
-                  <p className="text-[10px] font-mono text-slate-500">
-                    Only <span className="text-cyan-400">sonu9888123@gmail.com</span> is granted admin privileges.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
-                    Firebase Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter Firebase account password"
-                      required
-                      className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                    />
-                    <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
-                  Admin Master Password
-                </label>
-                <div className="relative">
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter server admin password"
-                    required
-                    className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                  />
-                  <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
+                Authorized Admin Email
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="sonu9888123@gmail.com"
+                  required
+                  className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                />
+                <Mail className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
               </div>
-            )}
+              <p className="text-[10px] font-mono text-slate-500">
+                Only <span className="text-cyan-400">sonu9888123@gmail.com</span> is authorized for console access.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono font-semibold uppercase text-cyan-300">
+                Firebase Password
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter Firebase account password"
+                  required
+                  className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                />
+                <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
+              </div>
+            </div>
 
             {loginError && (
               <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-start space-x-2">
@@ -803,7 +735,7 @@ export default function AdminPage() {
               ) : (
                 <>
                   <Unlock className="w-4 h-4" />
-                  <span>{authMode === 'firebase' ? 'Sign In with Firebase Auth' : 'Access Terminal'}</span>
+                  <span>Sign In with Firebase Auth</span>
                 </>
               )}
             </button>
@@ -811,11 +743,7 @@ export default function AdminPage() {
 
           <div className="pt-2 border-t border-cyan-500/10 flex justify-between items-center text-[11px] font-mono text-slate-400">
             <span>
-              {authMode === 'firebase' ? (
-                <span>Firebase: <code className="text-cyan-400">arcstonks</code></span>
-              ) : (
-                <span>Admin Key: <code className="text-cyan-400">arcstonks@9888</code></span>
-              )}
+              Firebase Project: <code className="text-cyan-400">arcstonks</code>
             </span>
             <Link href="/" className="text-slate-400 hover:text-cyan-300 flex items-center space-x-1">
               <span>Back to Site</span>

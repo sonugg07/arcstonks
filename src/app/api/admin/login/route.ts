@@ -69,35 +69,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Fallback Master Password Authentication
-    if (password && typeof password === 'string') {
-      if (!validateAdminPassword(password)) {
-        return NextResponse.json({ error: 'Invalid admin credentials.' }, { status: 401 });
-      }
-
-      const token = signAdminToken();
-      const response = NextResponse.json({
-        success: true,
-        token,
-        email: 'sonu9888123@gmail.com',
-        authType: 'password',
-        message: 'Authenticated successfully with admin credentials',
-      });
-
-      response.cookies.set({
-        name: ADMIN_COOKIE_NAME,
-        value: token,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60,
-      });
-
-      return response;
+    // Password-only login is disabled; Firebase Authentication is strictly required.
+    if (password && !idToken) {
+      return NextResponse.json(
+        { error: 'Password-only login is disabled. Administrative access strictly requires Firebase Authentication with sonu9888123@gmail.com.' },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ error: 'Missing authentication credentials (idToken or password).' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing Firebase Auth ID token.' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
