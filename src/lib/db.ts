@@ -14,6 +14,8 @@ import {
   addWaitlistUserFirestore,
   getWaitlistUsersFirestore,
   deleteWaitlistUserFirestore,
+  getAllWaitlistAddressesForExportFirestore,
+  getAllWaitlistEntriesForExportFirestore,
   isWalletEligibleFirestore,
   getEligibleWalletsFirestore,
   addEligibleWalletFirestore,
@@ -22,6 +24,7 @@ import {
   importEligibleWalletsFirestore,
   getPublicTasksFirestore,
   getAllTasksAdminFirestore,
+  getTaskCompletionsFirestore,
   createTaskFirestore,
   updateTaskFirestore,
   deleteTaskFirestore,
@@ -29,10 +32,7 @@ import {
   checkRequiredTasksCompletedFirestore,
   isProofUsedByAnotherWalletFirestore,
   getAdminStatsFirestore,
-  COLLECTIONS,
 } from './firestore';
-import { getFirebaseDb } from './firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { normalizeAddress, isValidEvmAddress } from './validation';
 
 // -------------------------------------------------------------
@@ -75,39 +75,11 @@ export async function getWaitlistUsers(
 }
 
 export async function getAllWaitlistAddressesForExport(): Promise<string[]> {
-  try {
-    const db = getFirebaseDb();
-    const snap = await getDocs(collection(db, COLLECTIONS.WAITLIST));
-    const list: string[] = [];
-    snap.forEach(d => {
-      const data = d.data();
-      list.push(data.wallet_address || d.id);
-    });
-    return list;
-  } catch (err) {
-    console.error('Error fetching waitlist addresses for export:', err);
-    return [];
-  }
+  return getAllWaitlistAddressesForExportFirestore();
 }
 
 export async function getAllWaitlistEntriesForExport(): Promise<{ wallet_address: string; x_handle?: string; created_at: string }[]> {
-  try {
-    const db = getFirebaseDb();
-    const snap = await getDocs(collection(db, COLLECTIONS.WAITLIST));
-    const list: { wallet_address: string; x_handle?: string; created_at: string }[] = [];
-    snap.forEach(d => {
-      const data = d.data();
-      list.push({
-        wallet_address: data.wallet_address || d.id,
-        x_handle: data.x_handle || undefined,
-        created_at: data.created_at || '',
-      });
-    });
-    return list;
-  } catch (err) {
-    console.error('Error fetching waitlist entries for export:', err);
-    return [];
-  }
+  return getAllWaitlistEntriesForExportFirestore();
 }
 
 export async function deleteWaitlistUser(id: string | number): Promise<boolean> {
@@ -156,26 +128,7 @@ export async function getTaskCompletions(
   taskId: string | number,
   limit = 50
 ): Promise<{ id: string | number; wallet_address: string; proof_value?: string; verified_at: string }[]> {
-  try {
-    const db = getFirebaseDb();
-    const compCol = collection(db, COLLECTIONS.COMPLETIONS);
-    const q = query(compCol, where('task_id', '==', String(taskId)));
-    const snap = await getDocs(q);
-    const list: { id: string | number; wallet_address: string; proof_value?: string; verified_at: string }[] = [];
-    snap.forEach(d => {
-      const data = d.data();
-      list.push({
-        id: d.id,
-        wallet_address: data.wallet_address || '',
-        proof_value: data.proof_value || undefined,
-        verified_at: data.verified_at || '',
-      });
-    });
-    return list.slice(0, limit);
-  } catch (err) {
-    console.error('Error getting task completions:', err);
-    return [];
-  }
+  return getTaskCompletionsFirestore(taskId, limit);
 }
 
 export function normalizeTaskUrl(rawUrl?: string): string {

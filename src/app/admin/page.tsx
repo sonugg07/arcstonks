@@ -1022,8 +1022,9 @@ export default function AdminPage() {
             </button>
           </div>
 
-          <div className="text-xs font-mono text-slate-500 hidden sm:block">
-            Storage: Persistent SQLite (<code className="text-slate-400">arcstonks.db</code>)
+          <div className="text-xs font-mono text-cyan-400/90 hidden sm:flex items-center space-x-1.5 bg-cyan-950/40 border border-cyan-500/20 px-3 py-1 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Storage: <strong className="text-white">Firebase Firestore</strong></span>
           </div>
         </div>
 

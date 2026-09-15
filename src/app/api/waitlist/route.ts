@@ -107,6 +107,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Waitlist submission error:', error);
-    return NextResponse.json({ error: 'Server error processing waitlist submission.' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Server error processing waitlist submission.' }, { status: 500 });
   }
 }

@@ -27,6 +27,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
+export async function PATCH(request: NextRequest, context: { params: { id: string } }) {
+  return PUT(request, context);
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   if (!verifyAdminSession(request)) {
     return unauthorizedResponse();

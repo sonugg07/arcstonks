@@ -1,21 +1,4 @@
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  writeBatch,
-  serverTimestamp,
-  Timestamp,
-  getCountFromServer
-} from 'firebase/firestore';
-import { getFirebaseDb } from './firebase';
+import { getAdminDb } from './firebaseAdmin';
 import {
   SiteSettings,
   WaitlistUser,
@@ -27,15 +10,19 @@ import {
 } from './types';
 import { normalizeAddress, isValidEvmAddress } from './validation';
 
-// Collection Names (as requested by user)
+// Collection Names
 export const COLLECTIONS = {
   SETTINGS: 'site_settings',
   ELIGIBLE: 'eligible_wallets',
   WAITLIST: 'waitlist_users',
   TASKS: 'waitlist_tasks',
   COMPLETIONS: 'waitlist_task_completions',
+  ADMINS: 'admins',
 } as const;
 
+/**
+ * Normalizes task URLs to valid social endpoints
+ */
 function formatTaskUrl(url?: string): string {
   if (!url || !url.trim()) return 'https://x.com/arcstonks';
   let clean = url.trim();
@@ -48,18 +35,30 @@ function formatTaskUrl(url?: string): string {
   return clean;
 }
 
+/**
+ * Universal helper to check if a document snapshot exists across both Admin and Client SDKs.
+ */
+function docExists(snap: any): boolean {
+  if (!snap) return false;
+  if (typeof snap.exists === 'function') return snap.exists();
+  return Boolean(snap.exists);
+}
+
 // -------------------------------------------------------------
 // Site Settings
 // -------------------------------------------------------------
 
 export async function getSettingsFirestore(): Promise<{ waitlist_enabled: boolean; checker_enabled: boolean; updated_at: string }> {
   try {
-    const db = getFirebaseDb();
-    const docRef = doc(db, COLLECTIONS.SETTINGS, 'default');
-    const snap = await getDoc(docRef);
+    const db = getAdminDb();
+    // Check 'global' first, then 'default' for backward compatibility
+    let snap = await db.collection(COLLECTIONS.SETTINGS).doc('global').get();
+    if (!docExists(snap)) {
+      snap = await db.collection(COLLECTIONS.SETTINGS).doc('default').get();
+    }
 
-    if (snap.exists()) {
-      const data = snap.data();
+    if (docExists(snap)) {
+      const data = snap.data() || {};
       return {
         waitlist_enabled: data.waitlist_enabled !== undefined ? Boolean(data.waitlist_enabled) : true,
         checker_enabled: data.checker_enabled !== undefined ? Boolean(data.checker_enabled) : true,
@@ -67,16 +66,14 @@ export async function getSettingsFirestore(): Promise<{ waitlist_enabled: boolea
       };
     }
 
-    // Default settings if not yet created in Firestore
-    const defaults = {
+    // Default settings if collection is empty (pure read, no side-effect write)
+    return {
       waitlist_enabled: true,
       checker_enabled: true,
       updated_at: new Date().toISOString(),
     };
-    await setDoc(docRef, defaults, { merge: true });
-    return defaults;
   } catch (err) {
-    console.warn('Error fetching settings from Firestore, returning defaults:', err);
+    console.warn('[Firestore] Error fetching settings, returning defaults:', err);
     return {
       waitlist_enabled: true,
       checker_enabled: true,
@@ -89,22 +86,21 @@ export async function updateSettingsFirestore(
   waitlist_enabled?: boolean,
   checker_enabled?: boolean
 ): Promise<{ waitlist_enabled: boolean; checker_enabled: boolean }> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const current = await getSettingsFirestore();
   const newWaitlist = waitlist_enabled !== undefined ? Boolean(waitlist_enabled) : current.waitlist_enabled;
   const newChecker = checker_enabled !== undefined ? Boolean(checker_enabled) : current.checker_enabled;
   const now = new Date().toISOString();
 
-  const docRef = doc(db, COLLECTIONS.SETTINGS, 'default');
-  await setDoc(
-    docRef,
-    {
-      waitlist_enabled: newWaitlist,
-      checker_enabled: newChecker,
-      updated_at: now,
-    },
-    { merge: true }
-  );
+  const payload = {
+    waitlist_enabled: newWaitlist,
+    checker_enabled: newChecker,
+    updated_at: now,
+  };
+
+  // Persist to both 'global' and 'default' so all readers remain perfectly synchronized
+  await db.collection(COLLECTIONS.SETTINGS).doc('global').set(payload, { merge: true });
+  await db.collection(COLLECTIONS.SETTINGS).doc('default').set(payload, { merge: true });
 
   return {
     waitlist_enabled: newWaitlist,
@@ -117,16 +113,22 @@ export async function updateSettingsFirestore(
 // -------------------------------------------------------------
 
 export async function getWaitlistUserByAddressFirestore(rawAddress: string): Promise<WaitlistUser | null> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(rawAddress);
-  const docRef = doc(db, COLLECTIONS.WAITLIST, address);
-  const snap = await getDoc(docRef);
+  const addressLower = address.toLowerCase();
 
-  if (!snap.exists()) {
+  // Check lowercase doc ID first (standard requirement)
+  let snap = await db.collection(COLLECTIONS.WAITLIST).doc(addressLower).get();
+  if (!docExists(snap)) {
+    // Check original address doc ID (legacy fallback)
+    snap = await db.collection(COLLECTIONS.WAITLIST).doc(address).get();
+  }
+
+  if (!docExists(snap)) {
     return null;
   }
 
-  const data = snap.data();
+  const data = snap.data() || {};
   return {
     id: snap.id,
     wallet_address: data.wallet_address || address,
@@ -141,16 +143,17 @@ export async function addWaitlistUserFirestore(
   ip_hash?: string,
   xHandle?: string
 ): Promise<{ success: boolean; alreadyExists: boolean; entry?: WaitlistUser }> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(rawAddress);
+  const addressLower = address.toLowerCase();
   const cleanHandle = xHandle ? xHandle.trim() : undefined;
-  const docRef = doc(db, COLLECTIONS.WAITLIST, address);
+  const docRef = db.collection(COLLECTIONS.WAITLIST).doc(addressLower);
 
-  const existing = await getDoc(docRef);
-  if (existing.exists()) {
-    const data = existing.data();
+  const existing = await docRef.get();
+  if (docExists(existing)) {
+    const data = existing.data() || {};
     if (cleanHandle && !data.x_handle) {
-      await updateDoc(docRef, { x_handle: cleanHandle });
+      await docRef.update({ x_handle: cleanHandle });
       data.x_handle = cleanHandle;
     }
     return {
@@ -169,19 +172,19 @@ export async function addWaitlistUserFirestore(
   const now = new Date().toISOString();
   const newEntry = {
     wallet_address: address,
-    wallet_address_lower: address.toLowerCase(),
+    wallet_address_lower: addressLower,
     ip_hash: ip_hash || null,
     x_handle: cleanHandle || null,
     created_at: now,
   };
 
-  await setDoc(docRef, newEntry);
+  await docRef.set(newEntry);
 
   return {
     success: true,
     alreadyExists: false,
     entry: {
-      id: address,
+      id: addressLower,
       wallet_address: address,
       created_at: now,
       ip_hash,
@@ -195,13 +198,12 @@ export async function getWaitlistUsersFirestore(
   limitCount = 50,
   offset = 0
 ): Promise<{ users: WaitlistUser[]; total: number }> {
-  const db = getFirebaseDb();
-  const colRef = collection(db, COLLECTIONS.WAITLIST);
-  const snap = await getDocs(colRef);
+  const db = getAdminDb();
+  const snap = await db.collection(COLLECTIONS.WAITLIST).get();
 
   let list: WaitlistUser[] = [];
-  snap.forEach(d => {
-    const data = d.data();
+  snap.forEach((d: any) => {
+    const data = d.data() || {};
     list.push({
       id: d.id,
       wallet_address: data.wallet_address || d.id,
@@ -230,26 +232,70 @@ export async function getWaitlistUsersFirestore(
 }
 
 export async function deleteWaitlistUserFirestore(idOrAddress: string): Promise<boolean> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(idOrAddress);
-  const docRef = doc(db, COLLECTIONS.WAITLIST, address);
+  const addressLower = address.toLowerCase();
 
-  // Delete user doc
-  await deleteDoc(docRef);
+  // Delete both lowercase and checksummed documents if present
+  await db.collection(COLLECTIONS.WAITLIST).doc(addressLower).delete();
+  if (addressLower !== address) {
+    try {
+      await db.collection(COLLECTIONS.WAITLIST).doc(address).delete();
+    } catch {}
+  }
 
-  // Also remove associated completions
+  // Also remove associated completions for this wallet
   try {
-    const compCol = collection(db, COLLECTIONS.COMPLETIONS);
-    const q = query(compCol, where('wallet_address_lower', '==', address.toLowerCase()));
-    const compSnap = await getDocs(q);
-    const batch = writeBatch(db);
-    compSnap.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    const compSnap = await db.collection(COLLECTIONS.COMPLETIONS)
+      .where('wallet_address_lower', '==', addressLower)
+      .get();
+    
+    if (!compSnap.empty) {
+      const batch = db.batch();
+      compSnap.forEach((d: any) => batch.delete(d.ref));
+      await batch.commit();
+    }
   } catch (compErr) {
-    console.warn('Could not cascade delete waitlist completions:', compErr);
+    console.warn('[Firestore] Could not cascade delete waitlist completions:', compErr);
   }
 
   return true;
+}
+
+export async function getAllWaitlistAddressesForExportFirestore(): Promise<string[]> {
+  try {
+    const db = getAdminDb();
+    const snap = await db.collection(COLLECTIONS.WAITLIST).get();
+    const list: string[] = [];
+    snap.forEach((d: any) => {
+      const data = d.data() || {};
+      list.push(data.wallet_address || d.id);
+    });
+    return list;
+  } catch (err) {
+    console.error('[Firestore] Error fetching waitlist addresses for export:', err);
+    return [];
+  }
+}
+
+export async function getAllWaitlistEntriesForExportFirestore(): Promise<{ wallet_address: string; x_handle?: string; created_at: string }[]> {
+  try {
+    const db = getAdminDb();
+    const snap = await db.collection(COLLECTIONS.WAITLIST).get();
+    const list: { wallet_address: string; x_handle?: string; created_at: string }[] = [];
+    snap.forEach((d: any) => {
+      const data = d.data() || {};
+      list.push({
+        wallet_address: data.wallet_address || d.id,
+        x_handle: data.x_handle || undefined,
+        created_at: data.created_at || '',
+      });
+    });
+    return list;
+  } catch (err) {
+    console.error('[Firestore] Error fetching waitlist entries for export:', err);
+    return [];
+  }
 }
 
 // -------------------------------------------------------------
@@ -263,12 +309,17 @@ export async function isWalletEligibleFirestore(
     return { address: rawAddress, eligible: false, message: 'Invalid EVM wallet address format.' };
   }
 
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(rawAddress);
-  const docRef = doc(db, COLLECTIONS.ELIGIBLE, address);
-  const snap = await getDoc(docRef);
+  const addressLower = address.toLowerCase();
 
-  if (!snap.exists()) {
+  // Document ID is lowercase address
+  let snap = await db.collection(COLLECTIONS.ELIGIBLE).doc(addressLower).get();
+  if (!docExists(snap) && addressLower !== address) {
+    snap = await db.collection(COLLECTIONS.ELIGIBLE).doc(address).get();
+  }
+
+  if (!docExists(snap)) {
     return {
       address,
       eligible: false,
@@ -276,7 +327,7 @@ export async function isWalletEligibleFirestore(
     };
   }
 
-  const data = snap.data();
+  const data = snap.data() || {};
   if (data.status === 'paused') {
     return {
       address,
@@ -289,9 +340,9 @@ export async function isWalletEligibleFirestore(
   return {
     address,
     eligible: true,
-    allocation: data.allocation || 1,
+    allocation: Number(data.allocation) || 1,
     status: data.status || 'active',
-    message: `Congratulations! This wallet is eligible for ${data.allocation || 1} NFT(s).`,
+    message: `Congratulations! This wallet is eligible for ${data.allocation || 1} allocation(s).`,
   };
 }
 
@@ -300,17 +351,16 @@ export async function getEligibleWalletsFirestore(
   limitCount = 50,
   offset = 0
 ): Promise<{ wallets: EligibleWallet[]; total: number }> {
-  const db = getFirebaseDb();
-  const colRef = collection(db, COLLECTIONS.ELIGIBLE);
-  const snap = await getDocs(colRef);
+  const db = getAdminDb();
+  const snap = await db.collection(COLLECTIONS.ELIGIBLE).get();
 
   let list: EligibleWallet[] = [];
-  snap.forEach(d => {
-    const data = d.data();
+  snap.forEach((d: any) => {
+    const data = d.data() || {};
     list.push({
       id: d.id,
       wallet_address: data.wallet_address || d.id,
-      allocation: data.allocation || 1,
+      allocation: Number(data.allocation) || 1,
       status: data.status || 'active',
       created_at: data.created_at || '',
       updated_at: data.updated_at || '',
@@ -334,22 +384,23 @@ export async function addEligibleWalletFirestore(
   allocation = 1,
   status = 'active'
 ): Promise<EligibleWallet> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(rawAddress);
-  const docRef = doc(db, COLLECTIONS.ELIGIBLE, address);
+  const addressLower = address.toLowerCase();
+  const docRef = db.collection(COLLECTIONS.ELIGIBLE).doc(addressLower);
   const now = new Date().toISOString();
 
   const record = {
     wallet_address: address,
-    wallet_address_lower: address.toLowerCase(),
+    wallet_address_lower: addressLower,
     allocation: Math.max(1, allocation),
     status: status === 'paused' ? 'paused' : 'active',
     created_at: now,
     updated_at: now,
   };
 
-  await setDoc(docRef, record, { merge: true });
-  return { id: address, ...record };
+  await docRef.set(record, { merge: true });
+  return { id: addressLower, ...record };
 }
 
 export async function updateEligibleWalletFirestore(
@@ -357,30 +408,42 @@ export async function updateEligibleWalletFirestore(
   allocation?: number,
   status?: string
 ): Promise<boolean> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(idOrAddress);
-  const docRef = doc(db, COLLECTIONS.ELIGIBLE, address);
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  const addressLower = address.toLowerCase();
 
+  let docRef = db.collection(COLLECTIONS.ELIGIBLE).doc(addressLower);
+  let snap = await docRef.get();
+  if (!docExists(snap)) {
+    docRef = db.collection(COLLECTIONS.ELIGIBLE).doc(idOrAddress);
+  }
+
+  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
   if (allocation !== undefined) updates.allocation = Math.max(1, allocation);
   if (status !== undefined) updates.status = status;
 
-  await updateDoc(docRef, updates);
+  await docRef.set(updates, { merge: true });
   return true;
 }
 
 export async function deleteEligibleWalletFirestore(idOrAddress: string): Promise<boolean> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(idOrAddress);
-  const docRef = doc(db, COLLECTIONS.ELIGIBLE, address);
-  await deleteDoc(docRef);
+  const addressLower = address.toLowerCase();
+
+  await db.collection(COLLECTIONS.ELIGIBLE).doc(addressLower).delete();
+  if (addressLower !== address) {
+    try {
+      await db.collection(COLLECTIONS.ELIGIBLE).doc(address).delete();
+    } catch {}
+  }
   return true;
 }
 
 export async function importEligibleWalletsFirestore(
   entries: { address: string; allocation?: number }[]
 ): Promise<ImportResult> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const result: ImportResult = {
     totalProcessed: entries.length,
     successfulCount: 0,
@@ -392,14 +455,18 @@ export async function importEligibleWalletsFirestore(
   };
 
   const seenInBatch = new Set<string>();
-  const batch = writeBatch(db);
+  let batch = db.batch();
   let batchOps = 0;
   const now = new Date().toISOString();
 
   // Pre-fetch existing addresses
-  const existingSnap = await getDocs(collection(db, COLLECTIONS.ELIGIBLE));
+  const existingSnap = await db.collection(COLLECTIONS.ELIGIBLE).get();
   const existingSet = new Set<string>();
-  existingSnap.forEach(d => existingSet.add(d.id.toLowerCase()));
+  existingSnap.forEach((d: any) => {
+    existingSet.add(d.id.toLowerCase());
+    const data = d.data() || {};
+    if (data.wallet_address_lower) existingSet.add(data.wallet_address_lower);
+  });
 
   for (const entry of entries) {
     const raw = (entry.address || '').trim();
@@ -421,7 +488,7 @@ export async function importEligibleWalletsFirestore(
     seenInBatch.add(lower);
     const alloc = Math.max(1, parseInt(String(entry.allocation || 1), 10) || 1);
 
-    const docRef = doc(db, COLLECTIONS.ELIGIBLE, normalized);
+    const docRef = db.collection(COLLECTIONS.ELIGIBLE).doc(lower);
     batch.set(docRef, {
       wallet_address: normalized,
       wallet_address_lower: lower,
@@ -429,14 +496,15 @@ export async function importEligibleWalletsFirestore(
       status: 'active',
       created_at: now,
       updated_at: now,
-    });
+    }, { merge: true });
     batchOps++;
 
     result.successfulCount++;
     result.successful.push({ address: normalized, allocation: alloc });
 
-    if (batchOps >= 450) {
+    if (batchOps >= 400) {
       await batch.commit();
+      batch = db.batch();
       batchOps = 0;
     }
   }
@@ -452,14 +520,18 @@ export async function importEligibleWalletsFirestore(
 // Tasks & Task Completions
 // -------------------------------------------------------------
 
+/**
+ * Public community tasks loader.
+ * CRITICAL: Strictly read-only. Never performs unauthenticated auto-bootstrapping writes.
+ * If zero tasks exist in Firestore, cleanly returns an empty array.
+ */
 export async function getPublicTasksFirestore(rawAddress?: string): Promise<PublicTaskItem[]> {
-  const db = getFirebaseDb();
-  const colRef = collection(db, COLLECTIONS.TASKS);
-  const snap = await getDocs(colRef);
+  const db = getAdminDb();
+  const snap = await db.collection(COLLECTIONS.TASKS).get();
 
   let tasks: WaitlistTask[] = [];
-  snap.forEach(d => {
-    const data = d.data();
+  snap.forEach((d: any) => {
+    const data = d.data() || {};
     if (data.enabled !== false && data.enabled !== 0) {
       tasks.push({
         id: d.id,
@@ -475,40 +547,30 @@ export async function getPublicTasksFirestore(rawAddress?: string): Promise<Publ
     }
   });
 
-  // Sort by display_order
+  // Sort by display_order ascending
   tasks.sort((a, b) => a.display_order - b.display_order);
 
-  // If tasks are empty in Firestore, auto-bootstrap the 4 verified tasks
-  if (tasks.length === 0) {
-    const bootstrap = [
-      { id: 'task_1', title: 'Follow ArcStonks on X', type: 'Follow', url: 'https://x.com/arcstonks', required: true, enabled: true, display_order: 1 },
-      { id: 'task_2', title: 'Like our announcement', type: 'Like', url: 'https://x.com/arcstonks', required: true, enabled: true, display_order: 2 },
-      { id: 'task_3', title: 'Repost our announcement', type: 'Repost', url: 'https://x.com/arcstonks', required: true, enabled: true, display_order: 3 },
-      { id: 'task_4', title: 'Comment on our announcement', type: 'Comment', url: 'https://x.com/arcstonks', required: true, enabled: true, display_order: 4 },
-    ];
-    for (const t of bootstrap) {
-      const docRef = doc(db, COLLECTIONS.TASKS, t.id);
-      await setDoc(docRef, { ...t, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
-      tasks.push(t as any);
-    }
-  }
-
-  // Enrich with completions if wallet provided
+  // Enrich with user completions if a valid wallet address was provided
   const completionMap = new Map<string, { verified_at: string; proof_value?: string }>();
   if (rawAddress && isValidEvmAddress(rawAddress)) {
     const addressLower = normalizeAddress(rawAddress).toLowerCase();
-    const compCol = collection(db, COLLECTIONS.COMPLETIONS);
-    const q = query(compCol, where('wallet_address_lower', '==', addressLower));
-    const compSnap = await getDocs(q);
-    compSnap.forEach(d => {
-      const data = d.data();
-      if (data.task_id) {
-        completionMap.set(String(data.task_id), {
-          verified_at: data.verified_at || '',
-          proof_value: data.proof_value || undefined,
-        });
-      }
-    });
+    try {
+      const compSnap = await db.collection(COLLECTIONS.COMPLETIONS)
+        .where('wallet_address_lower', '==', addressLower)
+        .get();
+
+      compSnap.forEach((d: any) => {
+        const data = d.data() || {};
+        if (data.task_id) {
+          completionMap.set(String(data.task_id), {
+            verified_at: data.verified_at || '',
+            proof_value: data.proof_value || undefined,
+          });
+        }
+      });
+    } catch (compErr) {
+      console.warn('[Firestore] Error fetching completions for address:', compErr);
+    }
   }
 
   return tasks.map(t => {
@@ -529,13 +591,12 @@ export async function getPublicTasksFirestore(rawAddress?: string): Promise<Publ
 }
 
 export async function getAllTasksAdminFirestore(): Promise<WaitlistTask[]> {
-  const db = getFirebaseDb();
-  const colRef = collection(db, COLLECTIONS.TASKS);
-  const snap = await getDocs(colRef);
+  const db = getAdminDb();
+  const snap = await db.collection(COLLECTIONS.TASKS).get();
 
   let tasks: WaitlistTask[] = [];
-  snap.forEach(d => {
-    const data = d.data();
+  snap.forEach((d: any) => {
+    const data = d.data() || {};
     tasks.push({
       id: d.id,
       title: data.title || '',
@@ -552,22 +613,49 @@ export async function getAllTasksAdminFirestore(): Promise<WaitlistTask[]> {
 
   tasks.sort((a, b) => a.display_order - b.display_order);
 
-  // Get completion counts
+  // Compute completion counts
   try {
-    const compSnap = await getDocs(collection(db, COLLECTIONS.COMPLETIONS));
+    const compSnap = await db.collection(COLLECTIONS.COMPLETIONS).get();
     const countMap = new Map<string, number>();
-    compSnap.forEach(d => {
-      const tid = String(d.data().task_id || '');
-      countMap.set(tid, (countMap.get(tid) || 0) + 1);
+    compSnap.forEach((d: any) => {
+      const data = d.data() || {};
+      const tid = String(data.task_id || '');
+      if (tid) countMap.set(tid, (countMap.get(tid) || 0) + 1);
     });
-    tasks.forEach(t => {
+    tasks.forEach((t: any) => {
       t.completionCount = countMap.get(String(t.id)) || 0;
     });
   } catch (err) {
-    console.warn('Could not aggregate task completion counts:', err);
+    console.warn('[Firestore] Could not aggregate task completion counts:', err);
   }
 
   return tasks;
+}
+
+export async function getTaskCompletionsFirestore(
+  taskId: string | number,
+  limit = 50
+): Promise<{ id: string | number; wallet_address: string; proof_value?: string; verified_at: string }[]> {
+  try {
+    const db = getAdminDb();
+    const snap = await db.collection(COLLECTIONS.COMPLETIONS)
+      .where('task_id', '==', String(taskId))
+      .get();
+    const list: { id: string | number; wallet_address: string; proof_value?: string; verified_at: string }[] = [];
+    snap.forEach((d: any) => {
+      const data = d.data() || {};
+      list.push({
+        id: d.id,
+        wallet_address: data.wallet_address || '',
+        proof_value: data.proof_value || undefined,
+        verified_at: data.verified_at || '',
+      });
+    });
+    return list.slice(0, limit);
+  } catch (err) {
+    console.error('[Firestore] Error getting task completions:', err);
+    return [];
+  }
 }
 
 export async function createTaskFirestore(data: {
@@ -578,10 +666,10 @@ export async function createTaskFirestore(data: {
   enabled?: boolean;
   display_order?: number;
 }): Promise<WaitlistTask> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
   const now = new Date().toISOString();
-  const docRef = doc(db, COLLECTIONS.TASKS, taskId);
+  const docRef = db.collection(COLLECTIONS.TASKS).doc(taskId);
 
   const clean = {
     title: data.title.trim(),
@@ -594,7 +682,7 @@ export async function createTaskFirestore(data: {
     updated_at: now,
   };
 
-  await setDoc(docRef, clean);
+  await docRef.set(clean);
   return { id: taskId, ...clean, completionCount: 0 };
 }
 
@@ -602,8 +690,8 @@ export async function updateTaskFirestore(
   id: string | number,
   data: Partial<WaitlistTask>
 ): Promise<boolean> {
-  const db = getFirebaseDb();
-  const docRef = doc(db, COLLECTIONS.TASKS, String(id));
+  const db = getAdminDb();
+  const docRef = db.collection(COLLECTIONS.TASKS).doc(String(id));
   const updates: Record<string, any> = { updated_at: new Date().toISOString() };
 
   if (data.title !== undefined) updates.title = data.title.trim();
@@ -613,25 +701,28 @@ export async function updateTaskFirestore(
   if (data.enabled !== undefined) updates.enabled = Boolean(data.enabled);
   if (data.display_order !== undefined) updates.display_order = Number(data.display_order);
 
-  await updateDoc(docRef, updates);
+  await docRef.set(updates, { merge: true });
   return true;
 }
 
 export async function deleteTaskFirestore(id: string | number): Promise<boolean> {
-  const db = getFirebaseDb();
-  const docRef = doc(db, COLLECTIONS.TASKS, String(id));
-  await deleteDoc(docRef);
+  const db = getAdminDb();
+  const taskId = String(id);
+  await db.collection(COLLECTIONS.TASKS).doc(taskId).delete();
 
-  // Remove completions for this task
+  // Cascade remove completions for this task
   try {
-    const compCol = collection(db, COLLECTIONS.COMPLETIONS);
-    const q = query(compCol, where('task_id', '==', String(id)));
-    const snap = await getDocs(q);
-    const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    const compSnap = await db.collection(COLLECTIONS.COMPLETIONS)
+      .where('task_id', '==', taskId)
+      .get();
+    
+    if (!compSnap.empty) {
+      const batch = db.batch();
+      compSnap.forEach((d: any) => batch.delete(d.ref));
+      await batch.commit();
+    }
   } catch (err) {
-    console.warn('Could not cascade delete task completions:', err);
+    console.warn('[Firestore] Could not cascade delete task completions:', err);
   }
 
   return true;
@@ -646,26 +737,30 @@ export async function verifyTaskCompletionFirestore(
     return { success: false, error: 'Invalid EVM address format' };
   }
 
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(rawAddress);
+  const addressLower = address.toLowerCase();
   const tid = String(taskId);
 
   // Check if task exists and enabled
-  const taskDoc = await getDoc(doc(db, COLLECTIONS.TASKS, tid));
-  if (!taskDoc.exists() || taskDoc.data().enabled === false) {
-    return { success: false, error: 'Task not found or disabled' };
+  const taskSnap = await db.collection(COLLECTIONS.TASKS).doc(tid).get();
+  if (!docExists(taskSnap)) {
+    return { success: false, error: 'Task not found' };
+  }
+  const taskData = taskSnap.data() || {};
+  if (taskData.enabled === false) {
+    return { success: false, error: 'Task is disabled' };
   }
 
   const cleanProof = proofValue ? proofValue.trim() : null;
-  const completionId = `${address.toLowerCase()}_${tid}`;
-  const docRef = doc(db, COLLECTIONS.COMPLETIONS, completionId);
+  const completionId = `${addressLower}_${tid}`;
+  const docRef = db.collection(COLLECTIONS.COMPLETIONS).doc(completionId);
   const now = new Date().toISOString();
 
-  await setDoc(
-    docRef,
+  await docRef.set(
     {
       wallet_address: address,
-      wallet_address_lower: address.toLowerCase(),
+      wallet_address_lower: addressLower,
       task_id: tid,
       status: 'completed',
       proof_value: cleanProof,
@@ -681,16 +776,16 @@ export async function verifyTaskCompletionFirestore(
 export async function checkRequiredTasksCompletedFirestore(
   rawAddress: string
 ): Promise<{ allCompleted: boolean; missingTasks: string[]; requiredTotal: number; completedRequired: number }> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const address = normalizeAddress(rawAddress);
+  const addressLower = address.toLowerCase();
 
-  // 1. Get enabled & required tasks
-  const tasksCol = collection(db, COLLECTIONS.TASKS);
-  const tasksSnap = await getDocs(tasksCol);
+  // 1. Get all enabled & required tasks
+  const tasksSnap = await db.collection(COLLECTIONS.TASKS).get();
   const requiredTasks: { id: string; title: string }[] = [];
 
-  tasksSnap.forEach(d => {
-    const data = d.data();
+  tasksSnap.forEach((d: any) => {
+    const data = d.data() || {};
     if (data.enabled !== false && Boolean(data.required)) {
       requiredTasks.push({ id: d.id, title: data.title || '' });
     }
@@ -700,13 +795,14 @@ export async function checkRequiredTasksCompletedFirestore(
     return { allCompleted: true, missingTasks: [], requiredTotal: 0, completedRequired: 0 };
   }
 
-  // 2. Get completed tasks for wallet
-  const compCol = collection(db, COLLECTIONS.COMPLETIONS);
-  const q = query(compCol, where('wallet_address_lower', '==', address.toLowerCase()));
-  const compSnap = await getDocs(q);
+  // 2. Get completed tasks for this wallet
+  const compSnap = await db.collection(COLLECTIONS.COMPLETIONS)
+    .where('wallet_address_lower', '==', addressLower)
+    .get();
+
   const completedIds = new Set<string>();
-  compSnap.forEach(d => {
-    const data = d.data();
+  compSnap.forEach((d: any) => {
+    const data = d.data() || {};
     if (data.task_id) completedIds.add(String(data.task_id));
   });
 
@@ -737,14 +833,14 @@ export async function isProofUsedByAnotherWalletFirestore(
   const clean = proofValue.trim().toLowerCase().replace(/^@/, '');
   if (!clean) return false;
 
-  const db = getFirebaseDb();
-  const compCol = collection(db, COLLECTIONS.COMPLETIONS);
-  const q = query(compCol, where('task_id', '==', String(taskId)));
-  const snap = await getDocs(q);
+  const db = getAdminDb();
+  const compSnap = await db.collection(COLLECTIONS.COMPLETIONS)
+    .where('task_id', '==', String(taskId))
+    .get();
 
   const currentLower = normalizeAddress(currentAddress).toLowerCase();
-  for (const d of snap.docs) {
-    const data = d.data();
+  for (const d of compSnap.docs) {
+    const data = d.data() || {};
     const storedProof = (data.proof_value || '').trim().toLowerCase().replace(/^@/, '');
     if (storedProof === clean && data.wallet_address_lower !== currentLower) {
       return true;
@@ -759,28 +855,29 @@ export async function isProofUsedByAnotherWalletFirestore(
 // -------------------------------------------------------------
 
 export async function getAdminStatsFirestore(): Promise<AdminStats> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
 
   // Settings
   const settings = await getSettingsFirestore();
 
   // Waitlist count
-  const waitlistSnap = await getDocs(collection(db, COLLECTIONS.WAITLIST));
+  const waitlistSnap = await db.collection(COLLECTIONS.WAITLIST).get();
   const totalWaitlist = waitlistSnap.size;
 
   // Eligible count & allocations
-  const eligibleSnap = await getDocs(collection(db, COLLECTIONS.ELIGIBLE));
+  const eligibleSnap = await db.collection(COLLECTIONS.ELIGIBLE).get();
   const totalEligible = eligibleSnap.size;
   let totalAllocation = 0;
-  eligibleSnap.forEach(d => {
-    totalAllocation += Number(d.data().allocation || 1);
+  eligibleSnap.forEach((d: any) => {
+    const data = d.data() || {};
+    totalAllocation += Number(data.allocation || 1);
   });
 
   // Tasks & completions
-  const tasksSnap = await getDocs(collection(db, COLLECTIONS.TASKS));
+  const tasksSnap = await db.collection(COLLECTIONS.TASKS).get();
   const totalTasks = tasksSnap.size;
 
-  const compSnap = await getDocs(collection(db, COLLECTIONS.COMPLETIONS));
+  const compSnap = await db.collection(COLLECTIONS.COMPLETIONS).get();
   const totalCompletions = compSnap.size;
 
   return {

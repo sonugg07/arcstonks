@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^7.11.0",
     "@libsql/client": "^0.18.0",
     "@neondatabase/serverless": "^1.1.0",
     "@types/pg": "^8.23.1",
@@ -18,7 +19,7 @@
     "clsx": "^2.1.1",
     "cookie": "^0.7.2",
     "firebase": "^12.19.0",
-    "firebase-admin": "^14.4.0",
+    "firebase-admin": "^12.7.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.453.0",
     "next": "^14.2.15",

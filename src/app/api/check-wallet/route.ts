@@ -48,6 +48,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Wallet check error:', error);
-    return NextResponse.json({ error: 'Server error checking wallet.' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Server error checking wallet.' }, { status: 500 });
   }
 }

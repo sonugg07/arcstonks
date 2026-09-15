@@ -41,10 +41,10 @@ const nextConfig = {
     VITE_FIREBASE_MESSAGING_SENDER_ID: rawSenderId,
     VITE_FIREBASE_APP_ID: rawAppId,
   },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals.push('better-sqlite3');
-    }
+  experimental: {
+    serverComponentsExternalPackages: ['firebase-admin', '@google-cloud/firestore'],
+  },
+  webpack: (config) => {
     return config;
   },
 };
