@@ -33,7 +33,7 @@ import {
 import { WaitlistUser, EligibleWallet, AdminStats, ImportResult, WaitlistTask } from '@/lib/types';
 import { shortenAddress, isValidEvmAddress } from '@/lib/validation';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { getFirebaseAuth, validateFirebaseConfig, FirebaseConfigValidation } from '@/lib/firebase';
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
@@ -41,6 +41,11 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [configValidation, setConfigValidation] = useState<FirebaseConfigValidation | null>(null);
+
+  useEffect(() => {
+    setConfigValidation(validateFirebaseConfig());
+  }, []);
 
   // Tabs: 'waitlist' | 'eligible' | 'tasks' | 'settings'
   const [activeTab, setActiveTab] = useState<'waitlist' | 'eligible' | 'tasks' | 'settings'>('waitlist');
@@ -371,9 +376,16 @@ export default function AdminPage() {
     setLoginLoading(true);
 
     try {
+      const currentValidation = validateFirebaseConfig();
+      if (!currentValidation.hasApiKey) {
+        throw new Error(
+          `Firebase API Key is missing. Please configure NEXT_PUBLIC_FIREBASE_API_KEY (or VITE_FIREBASE_API_KEY) in Vercel Project Settings -> Environment Variables and redeploy.`
+        );
+      }
+
       const auth = getFirebaseAuth();
       if (!auth) {
-        throw new Error('Firebase Auth is not available. Please verify your Firebase environment variables.');
+        throw new Error('Firebase Auth is not available. Please check that your Firebase API Key is valid and redeploy.');
       }
 
       const email = adminEmail.trim().toLowerCase();
@@ -679,6 +691,26 @@ export default function AdminPage() {
               Root Admin
             </span>
           </div>
+
+          {configValidation && !configValidation.hasApiKey && (
+            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs font-mono space-y-2">
+              <div className="flex items-center space-x-2 font-bold text-amber-400 uppercase tracking-wider">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>Configuration Required</span>
+              </div>
+              <p className="text-slate-300 text-[11px]">
+                Firebase API Key is missing from the environment.
+              </p>
+              <div className="bg-[#040810] p-2.5 rounded-lg border border-amber-500/30 text-[11px] space-y-1">
+                <div className="text-slate-400">Add to Vercel Environment Variables:</div>
+                <div className="text-cyan-300 font-bold">• NEXT_PUBLIC_FIREBASE_API_KEY</div>
+                <div className="text-slate-500 text-[10px]">(or VITE_FIREBASE_API_KEY)</div>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Found in: Firebase Console &rarr; Project Settings &rarr; General &rarr; ArcStonks Web &rarr; apiKey. Then trigger a <strong>Redeploy</strong>.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
