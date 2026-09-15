@@ -21,6 +21,16 @@ export default function Roadmap() {
     },
     {
       phase: 'Phase 2',
+      title: 'Surprise Coming Soon',
+      status: 'Upcoming',
+      active: false,
+      icon: <Sparkles className="w-5 h-5 text-cyan-300" />,
+      items: [
+        'Surprise coming soon',
+      ],
+    },
+    {
+      phase: 'Phase 3',
       title: 'Collection Launch',
       status: 'Upcoming',
       active: false,
@@ -30,11 +40,10 @@ export default function Roadmap() {
         'Transparent metadata & artwork reveal',
         'Community growth & partner initiatives',
         'Early holder-focused initiatives and roles',
-        'Surprise coming soon',
       ],
     },
     {
-      phase: 'Phase 3',
+      phase: 'Phase 4',
       title: 'Ecosystem Expansion',
       status: 'Planned',
       active: false,
@@ -47,7 +56,7 @@ export default function Roadmap() {
       ],
     },
     {
-      phase: 'Phase 4',
+      phase: 'Phase 5',
       title: 'Community & Utility',
       status: 'Planned',
       active: false,
@@ -56,20 +65,7 @@ export default function Roadmap() {
         'New ecosystem and collaborative initiatives',
         'Community engagement & creator experiences',
         'Holder-focused experiences & events',
-        'Expanded utility integrations within Arc network',
-      ],
-    },
-    {
-      phase: 'Phase 5',
-      title: 'New Phase',
-      status: 'Planned',
-      active: false,
-      icon: <Sparkles className="w-5 h-5 text-teal-300" />,
-      items: [
-        'Community governance & DAO initiatives',
-        'Ecosystem collaborations & partner integration',
-        'Exclusive holder perks & reward programs',
-        'Surprise ecosystem developments reveal',
+        'Rewards for the community',
       ],
     },
     {
