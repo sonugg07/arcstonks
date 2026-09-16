@@ -37,7 +37,7 @@ import { getFirebaseAuth, validateFirebaseConfig, FirebaseConfigValidation, getA
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [adminEmail, setAdminEmail] = useState('sonu9888123@gmail.com');
+  const [adminEmail, setAdminEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -401,7 +401,7 @@ export default function AdminPage() {
 
       const email = adminEmail.trim().toLowerCase();
       if (email !== 'sonu9888123@gmail.com') {
-        throw new Error('Access Denied: Only sonu9888123@gmail.com is authorized to access the ArcStonks admin console.');
+        throw new Error('Access Denied: Unauthorized admin account.');
       }
 
       // 1. Authenticate with Firebase Authentication
@@ -443,7 +443,7 @@ export default function AdminPage() {
         const diag = getApiKeyDiagnostic();
         msg = `Firebase Auth Error (auth/api-key-not-valid): Google rejected the configured API key. [${diag.formatNote}]. In Firebase Console -> Project Settings -> General -> ArcStonks Web, copy the "apiKey" exactly and configure NEXT_PUBLIC_FIREBASE_API_KEY in Vercel.`;
       } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-        msg = 'Invalid password for sonu9888123@gmail.com. Please check your credentials in Firebase Authentication.';
+        msg = 'Invalid credentials. Please check your email and password in Firebase Authentication.';
       } else if (err.code === 'auth/too-many-requests') {
         msg = 'Access temporarily disabled due to many failed attempts. Please try again later.';
       }
@@ -770,15 +770,12 @@ export default function AdminPage() {
                   type="email"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
-                  placeholder="sonu9888123@gmail.com"
+                  placeholder="Enter authorized admin email"
                   required
                   className="w-full bg-[#070e17] border border-cyan-500/30 focus:border-cyan-400 rounded-xl px-4 py-3 text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
                 />
                 <Mail className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5" />
               </div>
-              <p className="text-[10px] font-mono text-slate-500">
-                Only <span className="text-cyan-400">sonu9888123@gmail.com</span> is authorized for console access.
-              </p>
             </div>
 
             <div className="space-y-1.5">
