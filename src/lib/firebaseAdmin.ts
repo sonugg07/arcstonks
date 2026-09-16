@@ -21,10 +21,91 @@ export function getProjectId(): string {
 }
 
 /**
+ * Safely parses and normalizes a Firebase Service Account JSON or Base64 string.
+ */
+function parseServiceAccountString(raw?: string): ServiceAccount | null {
+  if (!raw || typeof raw !== 'string') return null;
+  let str = raw.trim();
+  if (!str) return null;
+
+  // 1. Remove UTF-8 Byte Order Mark if present
+  if (str.charCodeAt(0) === 0xFEFF) {
+    str = str.slice(1).trim();
+  }
+
+  // 2. Strip surrounding quotes (single or double) that may be added by env editors
+  while ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+
+  // 3. Handle double-escaped JSON strings (e.g. \"type\": \"service_account\")
+  if (str.includes('\\"') && !str.includes('{"')) {
+    try {
+      str = JSON.parse(`"${str}"`);
+    } catch {}
+  }
+
+  let parsed: any = null;
+
+  // 4. Try parsing as direct JSON object
+  if (str.startsWith('{')) {
+    try {
+      parsed = JSON.parse(str);
+    } catch (e1) {
+      // Try replacing literal unescaped newlines inside strings
+      try {
+        parsed = JSON.parse(str.replace(/\r?\n/g, '\\n'));
+      } catch {}
+    }
+  }
+
+  // 5. Try Base64 decoding if not direct JSON
+  if (!parsed) {
+    try {
+      const decoded = Buffer.from(str, 'base64').toString('utf-8');
+      if (decoded.trim().startsWith('{')) {
+        parsed = JSON.parse(decoded);
+      }
+    } catch {}
+  }
+
+  // 6. Validate and normalize the parsed object
+  if (parsed && typeof parsed === 'object') {
+    let privateKey = (parsed.private_key || parsed.privateKey || '').trim();
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    while ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+      privateKey = privateKey.slice(1, -1).trim();
+    }
+
+    const clientEmail = (parsed.client_email || parsed.clientEmail || '').trim();
+    const resolvedProjectId = (parsed.project_id || parsed.projectId || getProjectId()).trim();
+
+    if (privateKey && clientEmail) {
+      return {
+        projectId: resolvedProjectId,
+        clientEmail,
+        privateKey,
+        project_id: resolvedProjectId,
+        client_email: clientEmail,
+        private_key: privateKey,
+      } as any;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Detects whether explicit Firebase Admin service-account credentials are present.
  */
 export function hasAdminCredentials(): boolean {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT) {
+  if (
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+    process.env.FIREBASE_SERVICE_ACCOUNT ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.SERVICE_ACCOUNT_KEY ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+  ) {
     return true;
   }
   if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
@@ -58,23 +139,29 @@ export function getFirebaseAdminApp(): App {
 
   const projectId = getProjectId();
   let credential: any = null;
+  let credentialSource = 'none';
 
-  // 1. JSON String or Base64 in FIREBASE_SERVICE_ACCOUNT_KEY / FIREBASE_SERVICE_ACCOUNT
-  const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (serviceAccountRaw) {
+  // 1. Check all JSON / Base64 service account environment variable aliases
+  const rawServiceAccount =
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+    process.env.FIREBASE_SERVICE_ACCOUNT ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.SERVICE_ACCOUNT_KEY ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
+    process.env.FIREBASE_ADMIN_CREDENTIALS;
+
+  if (rawServiceAccount) {
     try {
-      let parsed: any;
-      const trimmed = serviceAccountRaw.trim();
-      if (trimmed.startsWith('{')) {
-        parsed = JSON.parse(trimmed);
+      const parsed: any = parseServiceAccountString(rawServiceAccount);
+      if (parsed && parsed.privateKey && parsed.clientEmail) {
+        credential = cert(parsed);
+        credentialSource = `service_account_env (${parsed.clientEmail})`;
+        console.log(`[Firebase Admin] Authenticated with service account: ${parsed.clientEmail} for project: ${parsed.projectId || projectId}`);
       } else {
-        const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
-        parsed = JSON.parse(decoded);
+        console.warn('[Firebase Admin] Service account variable was present but could not be parsed into valid service account JSON.');
       }
-      credential = cert(parsed);
-      console.log('[Firebase Admin] Initialized with FIREBASE_SERVICE_ACCOUNT credential.');
     } catch (err: any) {
-      console.warn('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:', err.message);
+      console.warn('[Firebase Admin] Failed to initialize cert from service account JSON:', err.message);
     }
   }
 
@@ -82,18 +169,17 @@ export function getFirebaseAdminApp(): App {
   if (!credential && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     try {
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL.trim();
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY.trim();
-      // Unescape \n in private key
-      privateKey = privateKey.replace(/\\n/g, '\n');
-      if ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
-        privateKey = privateKey.slice(1, -1);
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY.trim().replace(/\\n/g, '\n');
+      while ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+        privateKey = privateKey.slice(1, -1).trim();
       }
       credential = cert({
         projectId,
         clientEmail,
         privateKey,
       } as ServiceAccount);
-      console.log('[Firebase Admin] Initialized with FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.');
+      credentialSource = `client_email_env (${clientEmail})`;
+      console.log(`[Firebase Admin] Authenticated with FIREBASE_CLIENT_EMAIL: ${clientEmail}`);
     } catch (err: any) {
       console.warn('[Firebase Admin] Failed to initialize with private key vars:', err.message);
     }
@@ -106,6 +192,7 @@ export function getFirebaseAdminApp(): App {
       if (fs.existsSync(gPath)) {
         const fileContent = JSON.parse(fs.readFileSync(gPath, 'utf-8'));
         credential = cert(fileContent);
+        credentialSource = `credentials_file (${gPath})`;
         console.log(`[Firebase Admin] Initialized with GOOGLE_APPLICATION_CREDENTIALS file: ${gPath}`);
       }
     } catch (err: any) {
@@ -120,6 +207,7 @@ export function getFirebaseAdminApp(): App {
       if (fs.existsSync(localKey)) {
         const fileContent = JSON.parse(fs.readFileSync(localKey, 'utf-8'));
         credential = cert(fileContent);
+        credentialSource = 'local_file (serviceAccountKey.json)';
         console.log('[Firebase Admin] Initialized with local serviceAccountKey.json.');
       }
     } catch (err: any) {
@@ -127,13 +215,15 @@ export function getFirebaseAdminApp(): App {
     }
   }
 
-  // 5. Application Default Credentials (ADC) or Project ID Fallback
+  // 5. Application Default Credentials (ADC) or Ambient Fallback
   if (!credential) {
     try {
       credential = applicationDefault();
+      credentialSource = 'application_default_credentials';
       console.log('[Firebase Admin] Using Application Default Credentials (ADC).');
     } catch {
-      console.log(`[Firebase Admin] Initializing with project ID: ${projectId} (Ambient/Project fallback).`);
+      credentialSource = 'ambient_project_id_only';
+      console.log(`[Firebase Admin] Initializing with project ID: ${projectId} (ambient fallback).`);
     }
   }
 
