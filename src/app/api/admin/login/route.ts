@@ -38,16 +38,19 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Check token expiry
+        // Check token expiry with 5 min leeway
         const nowSec = Math.floor(Date.now() / 1000);
-        if (decoded.exp && decoded.exp <= nowSec) {
+        if (decoded.exp && decoded.exp <= nowSec - 300) {
           return NextResponse.json({ error: 'Firebase Auth token has expired. Please log in again.' }, { status: 401 });
         }
 
-        // Issue response and set cookie
+        // Issue signed ArcStonks admin JWT for resilient serverless session
+        const adminJwt = signAdminToken();
+
         const response = NextResponse.json({
           success: true,
-          token: idToken,
+          token: adminJwt,
+          firebaseToken: idToken,
           email: decoded.email,
           authType: 'firebase',
           message: `Authenticated as ${decoded.email}`,
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         response.cookies.set({
           name: ADMIN_COOKIE_NAME,
-          value: idToken,
+          value: adminJwt,
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',

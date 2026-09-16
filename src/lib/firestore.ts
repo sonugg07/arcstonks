@@ -1084,7 +1084,11 @@ export async function isProofUsedByAnotherWalletFirestore(
 
 export async function getAdminStatsFirestore(): Promise<AdminStats> {
   const now = Date.now();
-  if (cachedAdminStats && now - lastAdminStatsTime < ADMIN_STATS_TTL_MS) {
+  const currentTtl = (cachedAdminStats && (cachedAdminStats.totalWaitlist > 0 || cachedAdminStats.totalEligible > 0))
+    ? ADMIN_STATS_TTL_MS
+    : 5000;
+
+  if (cachedAdminStats && now - lastAdminStatsTime < currentTtl) {
     return cachedAdminStats;
   }
 
@@ -1098,27 +1102,54 @@ export async function getAdminStatsFirestore(): Promise<AdminStats> {
   try {
     const db = getAdminDb();
 
-    // Use aggregation count() queries to minimize Firestore reads
+    // Use aggregation count() queries to minimize Firestore reads, with select() fallback
     try {
       const waitlistCountSnap = await db.collection(COLLECTIONS.WAITLIST).count().get();
       totalWaitlist = waitlistCountSnap.data().count;
-    } catch {}
+    } catch (countErr: any) {
+      console.warn('[Firestore] count() failed for waitlist, falling back to select query:', countErr.message);
+      try {
+        const snap = await db.collection(COLLECTIONS.WAITLIST).select().get();
+        totalWaitlist = snap.size;
+      } catch (snapErr: any) {
+        console.error('[Firestore] Failed to get waitlist count:', snapErr.message);
+      }
+    }
 
     try {
       const eligibleCountSnap = await db.collection(COLLECTIONS.ELIGIBLE).count().get();
       totalEligible = eligibleCountSnap.data().count;
       totalAllocation = totalEligible;
-    } catch {}
+    } catch (countErr: any) {
+      console.warn('[Firestore] count() failed for eligible, falling back to select query:', countErr.message);
+      try {
+        const snap = await db.collection(COLLECTIONS.ELIGIBLE).select().get();
+        totalEligible = snap.size;
+        totalAllocation = totalEligible;
+      } catch (snapErr: any) {
+        console.error('[Firestore] Failed to get eligible count:', snapErr.message);
+      }
+    }
 
     try {
       const tasksCountSnap = await db.collection(COLLECTIONS.TASKS).count().get();
       totalTasks = tasksCountSnap.data().count;
-    } catch {}
+    } catch {
+      try {
+        const snap = await db.collection(COLLECTIONS.TASKS).select().get();
+        totalTasks = snap.size;
+      } catch {}
+    }
 
     try {
       const compCountSnap = await db.collection(COLLECTIONS.COMPLETIONS).count().get();
       totalCompletions = compCountSnap.data().count;
-    } catch {}
+    } catch {
+      try {
+        const snap = await db.collection(COLLECTIONS.COMPLETIONS).select().get();
+        totalCompletions = snap.size;
+      } catch {}
+    }
   } catch (err: any) {
     console.warn('[Firestore] Error computing admin stats (returning safe fallback):', err.message);
   }

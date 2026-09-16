@@ -112,7 +112,20 @@ export default function AdminPage() {
 
   // Persistent Auth Fetch Helper (Supports Authorization Bearer token as well as cookies)
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('arcstonks_admin_token') : null;
+    let token = typeof window !== 'undefined' ? localStorage.getItem('arcstonks_admin_token') : null;
+    try {
+      const auth = getFirebaseAuth();
+      if (auth?.currentUser) {
+        const freshToken = await auth.currentUser.getIdToken();
+        if (freshToken) {
+          token = freshToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('arcstonks_admin_token', freshToken);
+          }
+        }
+      }
+    } catch {}
+
     const headers = new Headers(options.headers || {});
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
@@ -128,9 +141,90 @@ export default function AdminPage() {
       setAuthenticated(data.authenticated);
       if (data.authenticated) {
         fetchStats();
+        fetchWaitlist();
+        fetchTasks();
       }
     } catch {
       setAuthenticated(false);
+    }
+  }, [authFetch]);
+
+  // Fetch Stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/admin/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      } else {
+        console.warn(`[Admin] Failed to fetch stats: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
+    }
+  }, [authFetch]);
+
+  // Fetch Waitlist
+  const fetchWaitlist = useCallback(async () => {
+    setWaitlistLoading(true);
+    try {
+      const limit = 25;
+      const offset = waitlistPage * limit;
+      const res = await authFetch(
+        `/api/admin/waitlist?search=${encodeURIComponent(waitlistSearch)}&limit=${limit}&offset=${offset}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setWaitlistUsers(data.users || []);
+        setWaitlistTotal(data.total || 0);
+      } else {
+        console.warn(`[Admin] Failed to fetch waitlist: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch waitlist', err);
+    } finally {
+      setWaitlistLoading(false);
+    }
+  }, [authFetch, waitlistSearch, waitlistPage]);
+
+  // Fetch Eligible
+  const fetchEligible = useCallback(async () => {
+    setEligibleLoading(true);
+    try {
+      const limit = 25;
+      const offset = eligiblePage * limit;
+      const res = await authFetch(
+        `/api/admin/eligible?search=${encodeURIComponent(eligibleSearch)}&limit=${limit}&offset=${offset}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setEligibleWallets(data.wallets || []);
+        setEligibleTotal(data.total || 0);
+      } else {
+        console.warn(`[Admin] Failed to fetch eligible: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch eligible', err);
+    } finally {
+      setEligibleLoading(false);
+    }
+  }, [authFetch, eligibleSearch, eligiblePage]);
+
+  // Fetch Tasks
+  const fetchTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      const res = await authFetch('/api/admin/tasks');
+      if (res.ok) {
+        const data = await res.json();
+        setTasks(data.tasks || []);
+      } else {
+        console.warn(`[Admin] Failed to fetch tasks: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tasks', err);
+    } finally {
+      setTasksLoading(false);
     }
   }, [authFetch]);
 
@@ -150,13 +244,22 @@ export default function AdminPage() {
                   if (typeof window !== 'undefined') {
                     localStorage.setItem('arcstonks_admin_token', token);
                   }
-                  await fetch('/api/admin/login', {
+                  const res = await fetch('/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ idToken: token }),
                   });
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data.token && typeof window !== 'undefined') {
+                      localStorage.setItem('arcstonks_admin_token', data.token);
+                    }
+                  }
                   setAuthenticated(true);
                   setLoginError(null);
+                  fetchStats();
+                  fetchWaitlist();
+                  fetchTasks();
                 } catch (err) {
                   console.error('Failed to sync Firebase Auth token with session', err);
                 }
@@ -189,75 +292,11 @@ export default function AdminPage() {
     return () => {
       if (unsubscribeAuth) unsubscribeAuth();
     };
-  }, [checkAuth]);
-
-  // Fetch Stats
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await authFetch('/api/admin/stats');
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats', err);
-    }
-  }, [authFetch]);
-
-  // Fetch Waitlist
-  const fetchWaitlist = useCallback(async () => {
-    setWaitlistLoading(true);
-    try {
-      const limit = 25;
-      const offset = waitlistPage * limit;
-      const res = await authFetch(
-        `/api/admin/waitlist?search=${encodeURIComponent(waitlistSearch)}&limit=${limit}&offset=${offset}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setWaitlistUsers(data.users);
-        setWaitlistTotal(data.total);
-      }
-    } finally {
-      setWaitlistLoading(false);
-    }
-  }, [authFetch, waitlistSearch, waitlistPage]);
-
-  // Fetch Eligible
-  const fetchEligible = useCallback(async () => {
-    setEligibleLoading(true);
-    try {
-      const limit = 25;
-      const offset = eligiblePage * limit;
-      const res = await authFetch(
-        `/api/admin/eligible?search=${encodeURIComponent(eligibleSearch)}&limit=${limit}&offset=${offset}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setEligibleWallets(data.wallets);
-        setEligibleTotal(data.total);
-      }
-    } finally {
-      setEligibleLoading(false);
-    }
-  }, [authFetch, eligibleSearch, eligiblePage]);
-
-  // Fetch Tasks
-  const fetchTasks = useCallback(async () => {
-    setTasksLoading(true);
-    try {
-      const res = await authFetch('/api/admin/tasks');
-      if (res.ok) {
-        const data = await res.json();
-        setTasks(data.tasks || []);
-      }
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [authFetch]);
+  }, [checkAuth, fetchStats, fetchWaitlist, fetchTasks]);
 
   useEffect(() => {
     if (authenticated) {
+      fetchStats();
       if (activeTab === 'waitlist') {
         fetchWaitlist();
       } else if (activeTab === 'eligible') {
@@ -266,7 +305,7 @@ export default function AdminPage() {
         fetchTasks();
       }
     }
-  }, [authenticated, activeTab, fetchWaitlist, fetchEligible, fetchTasks]);
+  }, [authenticated, activeTab, fetchStats, fetchWaitlist, fetchEligible, fetchTasks]);
 
   // Create Task Handler
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -1015,7 +1054,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Tasks ({tasks.length})
+              Waitlist Tasks ({stats?.totalTasks ?? tasks.length})
             </button>
           </div>
 
