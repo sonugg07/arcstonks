@@ -51,10 +51,20 @@ function docExists(snap: any): boolean {
 export async function getSettingsFirestore(): Promise<{ waitlist_enabled: boolean; checker_enabled: boolean; updated_at: string }> {
   try {
     const db = getAdminDb();
-    // Check 'global' first, then 'default' for backward compatibility
+    // Check 'global' and 'default' in COLLECTIONS.SETTINGS ('site_settings') and alias ('settings')
     let snap = await db.collection(COLLECTIONS.SETTINGS).doc('global').get();
     if (!docExists(snap)) {
       snap = await db.collection(COLLECTIONS.SETTINGS).doc('default').get();
+    }
+    if (!docExists(snap)) {
+      try {
+        snap = await db.collection('settings').doc('default').get();
+      } catch {}
+    }
+    if (!docExists(snap)) {
+      try {
+        snap = await db.collection('settings').doc('global').get();
+      } catch {}
     }
 
     if (docExists(snap)) {
@@ -72,8 +82,8 @@ export async function getSettingsFirestore(): Promise<{ waitlist_enabled: boolea
       checker_enabled: true,
       updated_at: new Date().toISOString(),
     };
-  } catch (err) {
-    console.warn('[Firestore] Error fetching settings, returning defaults:', err);
+  } catch (err: any) {
+    console.warn('[Firestore] Error fetching settings:', err.message);
     return {
       waitlist_enabled: true,
       checker_enabled: true,
@@ -199,17 +209,29 @@ export async function getWaitlistUsersFirestore(
   offset = 0
 ): Promise<{ users: WaitlistUser[]; total: number }> {
   const db = getAdminDb();
-  const snap = await db.collection(COLLECTIONS.WAITLIST).get();
+  let snap = await db.collection(COLLECTIONS.WAITLIST).get();
+  if (snap.empty) {
+    try {
+      const altSnap = await db.collection('waitlist').get();
+      if (!altSnap.empty) snap = altSnap;
+    } catch {}
+  }
+  if (snap.empty) {
+    try {
+      const altSnap2 = await db.collection('users').get();
+      if (!altSnap2.empty) snap = altSnap2;
+    } catch {}
+  }
 
   let list: WaitlistUser[] = [];
   snap.forEach((d: any) => {
     const data = d.data() || {};
     list.push({
       id: d.id,
-      wallet_address: data.wallet_address || d.id,
-      created_at: data.created_at || '',
-      ip_hash: data.ip_hash || undefined,
-      x_handle: data.x_handle || undefined,
+      wallet_address: data.wallet_address || data.address || d.id,
+      created_at: data.created_at || data.createdAt || '',
+      ip_hash: data.ip_hash || data.ipHash || undefined,
+      x_handle: data.x_handle || data.xHandle || data.twitter || undefined,
     });
   });
 
@@ -265,11 +287,17 @@ export async function deleteWaitlistUserFirestore(idOrAddress: string): Promise<
 export async function getAllWaitlistAddressesForExportFirestore(): Promise<string[]> {
   try {
     const db = getAdminDb();
-    const snap = await db.collection(COLLECTIONS.WAITLIST).get();
+    let snap = await db.collection(COLLECTIONS.WAITLIST).get();
+    if (snap.empty) {
+      try {
+        const altSnap = await db.collection('waitlist').get();
+        if (!altSnap.empty) snap = altSnap;
+      } catch {}
+    }
     const list: string[] = [];
     snap.forEach((d: any) => {
       const data = d.data() || {};
-      list.push(data.wallet_address || d.id);
+      list.push(data.wallet_address || data.address || d.id);
     });
     return list;
   } catch (err) {
@@ -281,14 +309,20 @@ export async function getAllWaitlistAddressesForExportFirestore(): Promise<strin
 export async function getAllWaitlistEntriesForExportFirestore(): Promise<{ wallet_address: string; x_handle?: string; created_at: string }[]> {
   try {
     const db = getAdminDb();
-    const snap = await db.collection(COLLECTIONS.WAITLIST).get();
+    let snap = await db.collection(COLLECTIONS.WAITLIST).get();
+    if (snap.empty) {
+      try {
+        const altSnap = await db.collection('waitlist').get();
+        if (!altSnap.empty) snap = altSnap;
+      } catch {}
+    }
     const list: { wallet_address: string; x_handle?: string; created_at: string }[] = [];
     snap.forEach((d: any) => {
       const data = d.data() || {};
       list.push({
-        wallet_address: data.wallet_address || d.id,
-        x_handle: data.x_handle || undefined,
-        created_at: data.created_at || '',
+        wallet_address: data.wallet_address || data.address || d.id,
+        x_handle: data.x_handle || data.xHandle || undefined,
+        created_at: data.created_at || data.createdAt || '',
       });
     });
     return list;
@@ -318,6 +352,11 @@ export async function isWalletEligibleFirestore(
     let snap = await db.collection(COLLECTIONS.ELIGIBLE).doc(addressLower).get();
     if (!docExists(snap) && addressLower !== address) {
       snap = await db.collection(COLLECTIONS.ELIGIBLE).doc(address).get();
+    }
+    if (!docExists(snap)) {
+      try {
+        snap = await db.collection('eligible').doc(addressLower).get();
+      } catch {}
     }
 
     if (!docExists(snap)) {
@@ -362,18 +401,30 @@ export async function getEligibleWalletsFirestore(
   offset = 0
 ): Promise<{ wallets: EligibleWallet[]; total: number }> {
   const db = getAdminDb();
-  const snap = await db.collection(COLLECTIONS.ELIGIBLE).get();
+  let snap = await db.collection(COLLECTIONS.ELIGIBLE).get();
+  if (snap.empty) {
+    try {
+      const altSnap = await db.collection('eligible').get();
+      if (!altSnap.empty) snap = altSnap;
+    } catch {}
+  }
+  if (snap.empty) {
+    try {
+      const altSnap2 = await db.collection('whitelist').get();
+      if (!altSnap2.empty) snap = altSnap2;
+    } catch {}
+  }
 
   let list: EligibleWallet[] = [];
   snap.forEach((d: any) => {
     const data = d.data() || {};
     list.push({
       id: d.id,
-      wallet_address: data.wallet_address || d.id,
+      wallet_address: data.wallet_address || data.address || d.id,
       allocation: Number(data.allocation) || 1,
       status: data.status || 'active',
-      created_at: data.created_at || '',
-      updated_at: data.updated_at || '',
+      created_at: data.created_at || data.createdAt || '',
+      updated_at: data.updated_at || data.updatedAt || '',
     });
   });
 
@@ -381,7 +432,7 @@ export async function getEligibleWalletsFirestore(
 
   if (search.trim()) {
     const term = search.trim().toLowerCase();
-    list = list.filter(w => w.wallet_address.toLowerCase().includes(term));
+    list = list.filter(w => (w.wallet_address || '').toLowerCase().includes(term));
   }
 
   const total = list.length;
@@ -1102,33 +1153,65 @@ export async function getAdminStatsFirestore(): Promise<AdminStats> {
   try {
     const db = getAdminDb();
 
-    // Use aggregation count() queries to minimize Firestore reads, with select() fallback
+    // Waitlist Count
     try {
-      const waitlistCountSnap = await db.collection(COLLECTIONS.WAITLIST).count().get();
-      totalWaitlist = waitlistCountSnap.data().count;
-    } catch (countErr: any) {
-      console.warn('[Firestore] count() failed for waitlist, falling back to select query:', countErr.message);
+      let count = 0;
       try {
-        const snap = await db.collection(COLLECTIONS.WAITLIST).select().get();
-        totalWaitlist = snap.size;
-      } catch (snapErr: any) {
-        console.error('[Firestore] Failed to get waitlist count:', snapErr.message);
+        const waitlistCountSnap = await db.collection(COLLECTIONS.WAITLIST).count().get();
+        count = waitlistCountSnap.data().count;
+      } catch (countErr: any) {
+        try {
+          const snap = await db.collection(COLLECTIONS.WAITLIST).select().get();
+          count = snap.size;
+        } catch {}
       }
+
+      if (count === 0) {
+        try {
+          const altSnap = await db.collection('waitlist').select().get();
+          if (altSnap.size > 0) count = altSnap.size;
+        } catch {}
+      }
+      if (count === 0) {
+        try {
+          const altSnap2 = await db.collection('users').select().get();
+          if (altSnap2.size > 0) count = altSnap2.size;
+        } catch {}
+      }
+      totalWaitlist = count;
+    } catch (countErr: any) {
+      console.warn('[Firestore] Failed to get waitlist count:', countErr.message);
     }
 
+    // Eligible Count
     try {
-      const eligibleCountSnap = await db.collection(COLLECTIONS.ELIGIBLE).count().get();
-      totalEligible = eligibleCountSnap.data().count;
-      totalAllocation = totalEligible;
-    } catch (countErr: any) {
-      console.warn('[Firestore] count() failed for eligible, falling back to select query:', countErr.message);
+      let count = 0;
       try {
-        const snap = await db.collection(COLLECTIONS.ELIGIBLE).select().get();
-        totalEligible = snap.size;
-        totalAllocation = totalEligible;
-      } catch (snapErr: any) {
-        console.error('[Firestore] Failed to get eligible count:', snapErr.message);
+        const eligibleCountSnap = await db.collection(COLLECTIONS.ELIGIBLE).count().get();
+        count = eligibleCountSnap.data().count;
+      } catch (countErr: any) {
+        try {
+          const snap = await db.collection(COLLECTIONS.ELIGIBLE).select().get();
+          count = snap.size;
+        } catch {}
       }
+
+      if (count === 0) {
+        try {
+          const altSnap = await db.collection('eligible').select().get();
+          if (altSnap.size > 0) count = altSnap.size;
+        } catch {}
+      }
+      if (count === 0) {
+        try {
+          const altSnap2 = await db.collection('whitelist').select().get();
+          if (altSnap2.size > 0) count = altSnap2.size;
+        } catch {}
+      }
+      totalEligible = count;
+      totalAllocation = count;
+    } catch (countErr: any) {
+      console.warn('[Firestore] Failed to get eligible count:', countErr.message);
     }
 
     try {

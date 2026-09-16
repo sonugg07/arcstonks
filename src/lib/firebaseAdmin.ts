@@ -7,6 +7,11 @@ import fs from 'fs';
 let adminApp: App | null = null;
 let adminDb: Firestore | null = null;
 let adminAuth: Auth | null = null;
+let lastCredentialSource: string = 'uninitialized';
+
+export function getCredentialSource(): string {
+  return lastCredentialSource;
+}
 
 /**
  * Normalizes and resolves the Firebase Project ID for server environments.
@@ -48,33 +53,50 @@ function parseServiceAccountString(raw?: string): ServiceAccount | null {
   let parsed: any = null;
 
   // 4. Try parsing as direct JSON object
-  if (str.startsWith('{')) {
-    try {
-      parsed = JSON.parse(str);
-    } catch (e1) {
-      // Try replacing literal unescaped newlines inside strings
-      try {
-        parsed = JSON.parse(str.replace(/\r?\n/g, '\\n'));
-      } catch {}
-    }
-  }
+  try {
+    parsed = JSON.parse(str);
+  } catch {}
 
   // 5. Try Base64 decoding if not direct JSON
   if (!parsed) {
     try {
-      const decoded = Buffer.from(str, 'base64').toString('utf-8');
+      const cleanB64 = str.replace(/\s+/g, '');
+      const decoded = Buffer.from(cleanB64, 'base64').toString('utf-8');
       if (decoded.trim().startsWith('{')) {
         parsed = JSON.parse(decoded);
       }
     } catch {}
   }
 
-  // 6. Validate and normalize the parsed object
+  // 6. Fallback regex extraction if JSON parse failed due to unescaped multi-line strings
+  if (!parsed && str.includes('private_key')) {
+    try {
+      const pkMatch = str.match(/"private_key"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+      const emailMatch = str.match(/"client_email"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+      const projectMatch = str.match(/"project_id"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+
+      if (pkMatch && emailMatch) {
+        parsed = {
+          private_key: pkMatch[1],
+          client_email: emailMatch[1],
+          project_id: projectMatch ? projectMatch[1] : undefined,
+        };
+      }
+    } catch {}
+  }
+
+  // 7. Validate and normalize the parsed object
   if (parsed && typeof parsed === 'object') {
     let privateKey = (parsed.private_key || parsed.privateKey || '').trim();
-    privateKey = privateKey.replace(/\\n/g, '\n');
+    // Normalize newlines in private key
+    privateKey = privateKey.replace(/\r/g, '').replace(/\\n/g, '\n');
     while ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
       privateKey = privateKey.slice(1, -1).trim();
+    }
+
+    // Ensure PEM header and footer exist
+    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') && privateKey.length > 50) {
+      privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----\n`;
     }
 
     const clientEmail = (parsed.client_email || parsed.clientEmail || '').trim();
@@ -104,11 +126,15 @@ export function hasAdminCredentials(): boolean {
     process.env.FIREBASE_SERVICE_ACCOUNT ||
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
     process.env.SERVICE_ACCOUNT_KEY ||
-    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
+    process.env.FIREBASE_ADMIN_CREDENTIALS ||
+    process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT ||
+    process.env.FIREBASE_CREDENTIALS ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_KEY
   ) {
     return true;
   }
-  if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+  if (process.env.FIREBASE_CLIENT_EMAIL && (process.env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_ADMIN_PRIVATE_KEY)) {
     return true;
   }
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
@@ -148,7 +174,10 @@ export function getFirebaseAdminApp(): App {
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
     process.env.SERVICE_ACCOUNT_KEY ||
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
-    process.env.FIREBASE_ADMIN_CREDENTIALS;
+    process.env.FIREBASE_ADMIN_CREDENTIALS ||
+    process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT ||
+    process.env.FIREBASE_CREDENTIALS ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 
   if (rawServiceAccount) {
     try {
@@ -166,12 +195,17 @@ export function getFirebaseAdminApp(): App {
   }
 
   // 2. Individual Environment Variables (FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY)
-  if (!credential && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+  const clientEmailVar = process.env.FIREBASE_CLIENT_EMAIL || process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKeyVar = process.env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  if (!credential && clientEmailVar && privateKeyVar) {
     try {
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL.trim();
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY.trim().replace(/\\n/g, '\n');
+      const clientEmail = clientEmailVar.trim();
+      let privateKey = privateKeyVar.trim().replace(/\r/g, '').replace(/\\n/g, '\n');
       while ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
         privateKey = privateKey.slice(1, -1).trim();
+      }
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') && privateKey.length > 50) {
+        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----\n`;
       }
       credential = cert({
         projectId,
@@ -227,6 +261,8 @@ export function getFirebaseAdminApp(): App {
     }
   }
 
+  lastCredentialSource = credentialSource;
+
   adminApp = initializeApp({
     credential: credential || undefined,
     projectId,
@@ -241,9 +277,10 @@ export function getFirebaseAdminApp(): App {
 export function getAdminDb(): Firestore {
   if (!adminDb) {
     const app = getFirebaseAdminApp();
-    adminDb = getFirestore(app);
+    const databaseId = process.env.FIREBASE_DATABASE_ID || process.env.FIRESTORE_DATABASE_ID;
+    adminDb = databaseId ? (getFirestore as any)(app, databaseId) : getFirestore(app);
   }
-  return adminDb;
+  return adminDb!;
 }
 
 /**
@@ -254,7 +291,7 @@ export function getAdminAuth(): Auth {
     const app = getFirebaseAdminApp();
     adminAuth = getAuth(app);
   }
-  return adminAuth;
+  return adminAuth!;
 }
 
 export default getAdminDb;

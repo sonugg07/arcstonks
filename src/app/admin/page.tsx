@@ -694,6 +694,62 @@ export default function AdminPage() {
     }
   };
 
+  // Promote Single Waitlist to Eligible
+  const [promotingAddress, setPromotingAddress] = useState<string | null>(null);
+
+  const handlePromoteSingle = async (walletAddress: string) => {
+    setPromotingAddress(walletAddress);
+    try {
+      const res = await authFetch('/api/admin/eligible', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: walletAddress,
+          allocation: 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        fetchEligible();
+        fetchStats();
+      } else {
+        alert(data.error || 'Failed to promote wallet');
+      }
+    } catch {
+      alert('Error promoting wallet to whitelist');
+    } finally {
+      setPromotingAddress(null);
+    }
+  };
+
+  // CSV Export Handler using authenticated fetch & blob download
+  const [exportingCsv, setExportingCsv] = useState(false);
+
+  const handleExportCsv = async () => {
+    setExportingCsv(true);
+    try {
+      const res = await authFetch('/api/admin/waitlist/export');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Export failed with status ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `waitlist_wallets_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      alert(err.message || 'Failed to export CSV');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
   // Handle CSV file drop / selection
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -931,7 +987,7 @@ export default function AdminPage() {
               <Users className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="text-3xl font-extrabold font-mono text-white glow-cyan">
-              {stats?.totalWaitlist.toLocaleString() || 0}
+              {stats === null ? '...' : stats.totalWaitlist.toLocaleString()}
             </div>
             <div className="text-[11px] font-mono text-slate-400">
               Public submissions in <code className="text-cyan-400">waitlist_users</code>
@@ -945,7 +1001,7 @@ export default function AdminPage() {
               <Layers className="w-4 h-4 text-teal-400" />
             </div>
             <div className="text-3xl font-extrabold font-mono text-white glow-teal">
-              {stats?.totalEligible.toLocaleString() || 0}
+              {stats === null ? '...' : stats.totalEligible.toLocaleString()}
             </div>
             <div className="text-[11px] font-mono text-slate-400">
               Approved wallets in <code className="text-teal-400">eligible_wallets</code>
@@ -958,21 +1014,21 @@ export default function AdminPage() {
               <span className="uppercase">Waitlist Switch</span>
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  stats?.waitlistEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                  stats === null ? 'bg-slate-600 animate-pulse' : stats.waitlistEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
                 }`}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <span className="font-mono text-sm font-bold text-white">
-                WAITLIST: {stats?.waitlistEnabled ? 'ON' : 'OFF'}
+                WAITLIST: {stats === null ? '...' : (stats.waitlistEnabled ? 'ON' : 'OFF')}
               </span>
               <button
                 onClick={() => handleToggle('waitlist_enabled')}
-                disabled={updatingSettings}
+                disabled={stats === null || updatingSettings}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   stats?.waitlistEnabled ? 'bg-cyan-500' : 'bg-slate-800'
-                }`}
+                } ${stats === null || updatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -983,7 +1039,7 @@ export default function AdminPage() {
             </div>
 
             <div className="text-[11px] font-mono text-slate-400">
-              {stats?.waitlistEnabled ? 'Public submissions active' : 'Submissions locked'}
+              {stats === null ? 'Connecting to Firestore...' : stats.waitlistEnabled ? 'Public submissions active' : 'Submissions locked'}
             </div>
           </div>
 
@@ -993,21 +1049,21 @@ export default function AdminPage() {
               <span className="uppercase">Checker Switch</span>
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  stats?.checkerEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                  stats === null ? 'bg-slate-600 animate-pulse' : stats.checkerEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
                 }`}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <span className="font-mono text-sm font-bold text-white">
-                CHECKER: {stats?.checkerEnabled ? 'ON' : 'OFF'}
+                CHECKER: {stats === null ? '...' : (stats.checkerEnabled ? 'ON' : 'OFF')}
               </span>
               <button
                 onClick={() => handleToggle('checker_enabled')}
-                disabled={updatingSettings}
+                disabled={stats === null || updatingSettings}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   stats?.checkerEnabled ? 'bg-teal-500' : 'bg-slate-800'
-                }`}
+                } ${stats === null || updatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -1018,7 +1074,7 @@ export default function AdminPage() {
             </div>
 
             <div className="text-[11px] font-mono text-slate-400">
-              {stats?.checkerEnabled ? 'Public checker operational' : 'Checker unavailable'}
+              {stats === null ? 'Connecting to Firestore...' : stats.checkerEnabled ? 'Public checker operational' : 'Checker unavailable'}
             </div>
           </div>
         </div>
@@ -1034,7 +1090,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Users ({stats?.totalWaitlist || 0})
+              Waitlist Users ({stats === null ? '...' : stats.totalWaitlist})
             </button>
             <button
               onClick={() => setActiveTab('eligible')}
@@ -1044,7 +1100,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Eligible Wallets ({stats?.totalEligible || 0})
+              Eligible Wallets ({stats === null ? '...' : stats.totalEligible})
             </button>
             <button
               onClick={() => setActiveTab('tasks')}
@@ -1054,7 +1110,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Tasks ({stats?.totalTasks ?? tasks.length})
+              Waitlist Tasks ({stats === null ? '...' : (stats.totalTasks ?? tasks.length)})
             </button>
           </div>
 
@@ -1094,14 +1150,19 @@ export default function AdminPage() {
                 </button>
 
                 {/* CSV Export Button */}
-                <a
-                  href="/api/admin/waitlist/export"
-                  download="wallet_address.csv"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 text-black font-mono font-bold text-xs uppercase tracking-wider flex items-center space-x-1.5 hover:shadow-cyan-glow transition-all"
+                <button
+                  onClick={handleExportCsv}
+                  disabled={exportingCsv}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 text-black font-mono font-bold text-xs uppercase tracking-wider flex items-center space-x-1.5 hover:shadow-cyan-glow transition-all disabled:opacity-50"
+                  title="Export all waitlist addresses to CSV"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </a>
+                  {exportingCsv ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{exportingCsv ? 'Exporting...' : 'Export CSV'}</span>
+                </button>
               </div>
             </div>
 
@@ -1165,13 +1226,27 @@ export default function AdminPage() {
                             {new Date(user.created_at).toLocaleString()}
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <button
-                              onClick={() => handleDeleteWaitlist(user.id)}
-                              className="p-1.5 rounded text-rose-400 hover:bg-rose-950/40 transition-colors"
-                              title="Delete Submission"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end space-x-1">
+                              <button
+                                onClick={() => handlePromoteSingle(user.wallet_address)}
+                                disabled={promotingAddress === user.wallet_address}
+                                className="p-1.5 rounded text-teal-400 hover:bg-teal-950/40 hover:text-teal-300 transition-colors disabled:opacity-50"
+                                title="Promote to Whitelist"
+                              >
+                                {promotingAddress === user.wallet_address ? (
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <UserCheck className="w-4 h-4" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteWaitlist(user.id)}
+                                className="p-1.5 rounded text-rose-400 hover:bg-rose-950/40 transition-colors"
+                                title="Delete Submission"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
