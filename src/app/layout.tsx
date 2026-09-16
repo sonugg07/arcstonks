@@ -5,6 +5,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: 'ArcStonks | 4,444 Community NFTs on Arc Ecosystem',
   description: 'The flagship community-focused NFT collection built around the Arc ecosystem. 4,444 unique stonks powering a decentralized community.',
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    shortcut: '/icon.png',
+    apple: [
+      { url: '/apple-icon.png', type: 'image/png' },
+    ],
+  },
   openGraph: {
     title: 'ArcStonks — 4,444 Community NFTs',
     description: 'The flagship community-focused NFT collection built around the Arc ecosystem.',
