@@ -180,16 +180,21 @@ export default function AdminPage() {
     try {
       const res = await authFetch('/api/admin/stats');
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.ok !== false) {
         setStats(data);
         if (data.firestoreStatus === 'quota_exceeded') {
-          setStatsError('Google Cloud Firestore read quota temporarily exceeded. Displaying resilient cached data.');
+          setStatsError('Google Cloud Firestore daily read quota exceeded (50,000 free-tier reads reached on project arcstonks). Data loading is temporarily restricted by Google until quota resets or billing is upgraded.');
         } else if (data.firestoreStatus === 'degraded') {
-          setStatsError('Firestore response degraded. Real-time updates may be delayed.');
+          setStatsError('Some collections could not be loaded from Firestore. Showing partial data.');
         }
       } else {
-        const msg = data.error || `Failed to fetch stats: HTTP ${res.status}`;
-        setStatsError(msg);
+        const msg = data.message || data.error || `Failed to fetch stats: HTTP ${res.status}`;
+        setStats(data);
+        if (data.isQuotaError || data.firestoreStatus === 'quota_exceeded' || res.status === 429) {
+          setStatsError('Google Cloud Firestore daily read quota exceeded (50,000 free-tier reads reached on project arcstonks). Data loading is temporarily restricted by Google until quota resets or billing is upgraded.');
+        } else {
+          setStatsError(msg);
+        }
         console.warn(`[Admin] Failed to fetch stats: ${msg}`);
       }
     } catch (err: any) {
@@ -211,12 +216,13 @@ export default function AdminPage() {
         `/api/admin/waitlist?search=${encodeURIComponent(waitlistSearch)}&limit=${limit}&offset=${offset}`
       );
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.ok !== false) {
         setWaitlistUsers(data.users || []);
-        setWaitlistTotal(data.total || 0);
+        setWaitlistTotal(data.total ?? (data.users || []).length);
       } else {
-        const msg = data.error || `HTTP ${res.status}`;
+        const msg = data.message || data.error || `Failed to load waitlist (HTTP ${res.status})`;
         setWaitlistError(msg);
+        setWaitlistUsers([]);
         console.warn(`[Admin] Failed to fetch waitlist: ${msg}`);
       }
     } catch (err: any) {
@@ -238,12 +244,13 @@ export default function AdminPage() {
         `/api/admin/eligible?search=${encodeURIComponent(eligibleSearch)}&limit=${limit}&offset=${offset}`
       );
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.ok !== false) {
         setEligibleWallets(data.wallets || []);
-        setEligibleTotal(data.total || 0);
+        setEligibleTotal(data.total ?? (data.wallets || []).length);
       } else {
-        const msg = data.error || `HTTP ${res.status}`;
+        const msg = data.message || data.error || `Failed to load eligible list (HTTP ${res.status})`;
         setEligibleError(msg);
+        setEligibleWallets([]);
         console.warn(`[Admin] Failed to fetch eligible: ${msg}`);
       }
     } catch (err: any) {
@@ -261,10 +268,10 @@ export default function AdminPage() {
     try {
       const res = await authFetch('/api/admin/tasks');
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.ok !== false) {
         setTasks(data.tasks || []);
       } else {
-        const msg = data.error || `HTTP ${res.status}`;
+        const msg = data.message || data.error || `HTTP ${res.status}`;
         setTasksError(msg);
         console.warn(`[Admin] Failed to fetch tasks: ${msg}`);
       }
@@ -1083,7 +1090,16 @@ export default function AdminPage() {
               <Users className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="text-3xl font-extrabold font-mono text-white glow-cyan">
-              {stats === null ? (statsLoading ? 'SYNCING...' : '0') : stats.totalWaitlist.toLocaleString()}
+              {statsLoading ? (
+                <span className="text-cyan-400/80 animate-pulse text-xl">SYNCING...</span>
+              ) : stats?.totalWaitlist === null || stats?.totalWaitlist === undefined ? (
+                <span className="text-amber-400 text-base flex items-center space-x-1">
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                  <span>UNAVAILABLE</span>
+                </span>
+              ) : (
+                stats.totalWaitlist.toLocaleString()
+              )}
             </div>
             <div className="text-[11px] font-mono text-slate-400">
               Public submissions in <code className="text-cyan-400">waitlist_users</code>
@@ -1097,7 +1113,16 @@ export default function AdminPage() {
               <Layers className="w-4 h-4 text-teal-400" />
             </div>
             <div className="text-3xl font-extrabold font-mono text-white glow-teal">
-              {stats === null ? (statsLoading ? 'SYNCING...' : '0') : stats.totalEligible.toLocaleString()}
+              {statsLoading ? (
+                <span className="text-teal-400/80 animate-pulse text-xl">SYNCING...</span>
+              ) : stats?.totalEligible === null || stats?.totalEligible === undefined ? (
+                <span className="text-amber-400 text-base flex items-center space-x-1">
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                  <span>UNAVAILABLE</span>
+                </span>
+              ) : (
+                stats.totalEligible.toLocaleString()
+              )}
             </div>
             <div className="text-[11px] font-mono text-slate-400">
               Approved wallets in <code className="text-teal-400">eligible_wallets</code>
@@ -1186,7 +1211,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Users ({stats === null ? (statsLoading ? '...' : waitlistUsers.length) : stats.totalWaitlist})
+              Waitlist Users {statsLoading ? '(...)' : stats?.totalWaitlist === null ? '(!)' : `(${stats?.totalWaitlist ?? waitlistUsers.length})`}
             </button>
             <button
               onClick={() => setActiveTab('eligible')}
@@ -1196,7 +1221,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Eligible Wallets ({stats === null ? (statsLoading ? '...' : eligibleWallets.length) : stats.totalEligible})
+              Eligible Wallets {statsLoading ? '(...)' : stats?.totalEligible === null ? '(!)' : `(${stats?.totalEligible ?? eligibleWallets.length})`}
             </button>
             <button
               onClick={() => setActiveTab('tasks')}
@@ -1206,7 +1231,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Tasks ({stats === null ? (statsLoading ? '...' : tasks.length) : (stats.totalTasks ?? tasks.length)})
+              Waitlist Tasks {statsLoading ? '(...)' : stats?.totalTasks === null ? '(!)' : `(${stats?.totalTasks ?? tasks.length})`}
             </button>
           </div>
 

@@ -30,6 +30,16 @@ export async function GET(request: NextRequest) {
     hasGoogleAppCredsFile: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS),
     hasAdminCredentialsDetected: hasAdminCredentials(),
     credentialSource: getCredentialSource(),
+    requiredConfigValidation: {
+      FIREBASE_SERVICE_ACCOUNT_KEY: Boolean(rawServiceAccount),
+      NEXT_PUBLIC_FIREBASE_API_KEY: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY),
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: Boolean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID),
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: Boolean(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+      NEXT_PUBLIC_FIREBASE_APP_ID: Boolean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+      ADMIN_EMAILS: Boolean(process.env.ADMIN_EMAILS),
+    },
   };
 
   let firestoreDiagnostic: any = {

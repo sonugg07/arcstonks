@@ -23,14 +23,17 @@ export interface EligibleWallet {
 }
 
 export interface AdminStats {
-  totalWaitlist: number;
-  totalEligible: number;
-  totalAllocation: number;
+  ok?: boolean;
+  totalWaitlist: number | null;
+  totalEligible: number | null;
+  totalAllocation: number | null;
   waitlistEnabled: boolean;
   checkerEnabled: boolean;
-  totalTasks?: number;
-  totalCompletions?: number;
-  firestoreStatus?: 'connected' | 'degraded' | 'quota_exceeded';
+  totalTasks?: number | null;
+  totalCompletions?: number | null;
+  firestoreStatus?: 'connected' | 'degraded' | 'quota_exceeded' | 'error';
+  error?: string | null;
+  isQuotaError?: boolean;
 }
 
 export interface WalletCheckResponse {

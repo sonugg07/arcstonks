@@ -17,15 +17,17 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     const result = await getEligibleWallets(search, limit, offset);
-    return NextResponse.json(result);
+    return NextResponse.json({ ok: true, wallets: result.wallets, total: result.total });
   } catch (error: any) {
     console.error('[Admin Eligible GET Error]:', error.message || error);
     const isQuota = Boolean(error.message?.includes('RESOURCE_EXHAUSTED'));
     return NextResponse.json({
-      wallets: [],
-      total: 0,
-      error: error.message || 'Failed to fetch eligible wallets',
+      ok: false,
+      error: isQuota ? 'FIRESTORE_QUOTA_EXCEEDED' : 'FIRESTORE_READ_FAILED',
+      message: error.message || 'Failed to fetch eligible wallets',
       isQuotaError: isQuota,
+      wallets: [],
+      total: null,
     }, { status: isQuota ? 429 : 500 });
   }
 }

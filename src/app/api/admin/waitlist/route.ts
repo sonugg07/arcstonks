@@ -16,15 +16,17 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     const result = await getWaitlistUsers(search, limit, offset);
-    return NextResponse.json(result);
+    return NextResponse.json({ ok: true, users: result.users, total: result.total });
   } catch (error: any) {
     console.error('[Admin Waitlist GET Error]:', error.message || error);
     const isQuota = Boolean(error.message?.includes('RESOURCE_EXHAUSTED'));
     return NextResponse.json({
-      users: [],
-      total: 0,
-      error: error.message || 'Failed to fetch waitlist users',
+      ok: false,
+      error: isQuota ? 'FIRESTORE_QUOTA_EXCEEDED' : 'FIRESTORE_READ_FAILED',
+      message: error.message || 'Failed to fetch waitlist users',
       isQuotaError: isQuota,
+      users: [],
+      total: null,
     }, { status: isQuota ? 429 : 500 });
   }
 }
