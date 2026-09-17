@@ -43,18 +43,39 @@ export async function GET(request: NextRequest) {
   try {
     const db = getAdminDb();
 
-    // 1. Discover collections with timeout
+    // 1. Direct doc read test on site_settings
+    const settingsStart = Date.now();
     try {
+      const setSnap = await db.collection('site_settings').doc('global').get();
+      firestoreDiagnostic.directDocRead = {
+        success: true,
+        exists: setSnap.exists,
+        durationMs: Date.now() - settingsStart,
+        data: setSnap.data() || null,
+      };
+    } catch (setErr: any) {
+      firestoreDiagnostic.directDocRead = {
+        success: false,
+        durationMs: Date.now() - settingsStart,
+        error: setErr.message,
+        code: setErr.code || null,
+      };
+    }
+
+    // 2. Discover collections with 6s timeout
+    try {
+      const listStart = Date.now();
       const discovered = await Promise.race([
         db.listCollections(),
-        new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('listCollections timeout')), 3000)),
+        new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('listCollections timeout after 6s')), 6000)),
       ]);
       firestoreDiagnostic.discoveredCollections = discovered.map(c => c.id);
+      firestoreDiagnostic.listCollectionsDurationMs = Date.now() - listStart;
     } catch (listErr: any) {
       firestoreDiagnostic.listCollectionsError = listErr.message;
     }
 
-    // 2. Query canonical collections in parallel
+    // 3. Query canonical collections
     const targetCollections = [
       'waitlist_users',
       'eligible_wallets',
@@ -65,37 +86,48 @@ export async function GET(request: NextRequest) {
     ];
 
     const queryPromises = targetCollections.map(async (colName) => {
+      const colRef = db.collection(colName);
+      const colResult: any = { colName };
+
+      // Test A: Direct read (limit 5)
+      const readStart = Date.now();
       try {
-        const colRef = db.collection(colName);
-        const countSnap = await Promise.race([
-          colRef.count().get(),
-          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('count timeout')), 2500)),
-        ]);
-        const count = countSnap.data().count;
-
-        let sampleIds: string[] = [];
-        if (count > 0) {
-          const sampleSnap = await Promise.race([
-            colRef.limit(3).get(),
-            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('sample timeout')), 2000)),
-          ]);
-          sampleIds = sampleSnap.docs.map((d: any) => d.id);
-        }
-
-        return {
-          colName,
-          count,
-          sampleIds,
-          exists: count > 0 || sampleIds.length > 0,
+        const sampleSnap = await colRef.limit(5).get();
+        colResult.directRead = {
+          success: true,
+          docsFound: sampleSnap.size,
+          sampleIds: sampleSnap.docs.map(d => d.id),
+          durationMs: Date.now() - readStart,
         };
-      } catch (colErr: any) {
-        return {
-          colName,
-          count: 0,
-          error: colErr.message,
-          errorCode: colErr.code || null,
+      } catch (rErr: any) {
+        colResult.directRead = {
+          success: false,
+          error: rErr.message,
+          code: rErr.code || null,
+          durationMs: Date.now() - readStart,
         };
       }
+
+      // Test B: Count aggregation
+      const countStart = Date.now();
+      try {
+        const countSnap = await colRef.count().get();
+        colResult.countAggregation = {
+          success: true,
+          count: countSnap.data().count,
+          durationMs: Date.now() - countStart,
+        };
+      } catch (cErr: any) {
+        colResult.countAggregation = {
+          success: false,
+          error: cErr.message,
+          code: cErr.code || null,
+          durationMs: Date.now() - countStart,
+        };
+      }
+
+      colResult.count = colResult.countAggregation?.count ?? colResult.directRead?.docsFound ?? 0;
+      return colResult;
     });
 
     const results = await Promise.allSettled(queryPromises);
@@ -105,7 +137,7 @@ export async function GET(request: NextRequest) {
         firestoreDiagnostic.collections[colName] = res.value;
       } else {
         firestoreDiagnostic.collections[colName] = {
-          count: 0,
+          colName,
           error: res.reason?.message || 'Query failed',
         };
       }
