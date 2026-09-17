@@ -19,7 +19,14 @@ export async function GET(request: NextRequest) {
     const result = await getEligibleWallets(search, limit, offset);
     return NextResponse.json(result);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[Admin Eligible GET Error]:', error.message || error);
+    const isQuota = Boolean(error.message?.includes('RESOURCE_EXHAUSTED'));
+    return NextResponse.json({
+      wallets: [],
+      total: 0,
+      error: error.message || 'Failed to fetch eligible wallets',
+      isQuotaError: isQuota,
+    }, { status: isQuota ? 429 : 500 });
   }
 }
 

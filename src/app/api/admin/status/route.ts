@@ -43,76 +43,73 @@ export async function GET(request: NextRequest) {
   try {
     const db = getAdminDb();
 
-    // 1. Discover all root collections in Firestore
+    // 1. Discover collections with timeout
     try {
-      const discovered = await db.listCollections();
+      const discovered = await Promise.race([
+        db.listCollections(),
+        new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('listCollections timeout')), 3000)),
+      ]);
       firestoreDiagnostic.discoveredCollections = discovered.map(c => c.id);
     } catch (listErr: any) {
       firestoreDiagnostic.listCollectionsError = listErr.message;
     }
 
-    // 2. Query each relevant collection and alias
+    // 2. Query canonical collections in parallel
     const targetCollections = [
       'waitlist_users',
-      'waitlist',
-      'users',
       'eligible_wallets',
-      'eligible',
-      'whitelist',
       'waitlist_tasks',
-      'tasks',
       'site_settings',
-      'settings',
       'waitlist_task_completions',
-      'task_completions',
       'admins',
     ];
 
-    for (const colName of targetCollections) {
+    const queryPromises = targetCollections.map(async (colName) => {
       try {
         const colRef = db.collection(colName);
-        let count = 0;
-        try {
-          const countSnap = await colRef.count().get();
-          count = countSnap.data().count;
-        } catch {
-          const snap = await colRef.select().get();
-          count = snap.size;
-        }
+        const countSnap = await Promise.race([
+          colRef.count().get(),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('count timeout')), 2500)),
+        ]);
+        const count = countSnap.data().count;
 
         let sampleIds: string[] = [];
-        let sampleData: any[] = [];
         if (count > 0) {
-          const sampleSnap = await colRef.limit(5).get();
-          sampleIds = sampleSnap.docs.map(d => d.id);
-          sampleData = sampleSnap.docs.map(d => {
-            const data = d.data() || {};
-            return {
-              id: d.id,
-              wallet_address: data.wallet_address || data.address || undefined,
-              created_at: data.created_at || undefined,
-              allocation: data.allocation || undefined,
-              title: data.title || undefined,
-              waitlist_enabled: data.waitlist_enabled !== undefined ? data.waitlist_enabled : undefined,
-              checker_enabled: data.checker_enabled !== undefined ? data.checker_enabled : undefined,
-            };
-          });
+          const sampleSnap = await Promise.race([
+            colRef.limit(3).get(),
+            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('sample timeout')), 2000)),
+          ]);
+          sampleIds = sampleSnap.docs.map((d: any) => d.id);
         }
 
-        firestoreDiagnostic.collections[colName] = {
+        return {
+          colName,
           count,
           sampleIds,
-          sampleData,
           exists: count > 0 || sampleIds.length > 0,
         };
       } catch (colErr: any) {
-        firestoreDiagnostic.collections[colName] = {
+        return {
+          colName,
           count: 0,
           error: colErr.message,
           errorCode: colErr.code || null,
         };
       }
-    }
+    });
+
+    const results = await Promise.allSettled(queryPromises);
+    results.forEach((res, index) => {
+      const colName = targetCollections[index];
+      if (res.status === 'fulfilled') {
+        firestoreDiagnostic.collections[colName] = res.value;
+      } else {
+        firestoreDiagnostic.collections[colName] = {
+          count: 0,
+          error: res.reason?.message || 'Query failed',
+        };
+      }
+    });
 
     firestoreDiagnostic.connected = true;
   } catch (err: any) {

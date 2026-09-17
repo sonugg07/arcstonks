@@ -18,6 +18,13 @@ export async function GET(request: NextRequest) {
     const result = await getWaitlistUsers(search, limit, offset);
     return NextResponse.json(result);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[Admin Waitlist GET Error]:', error.message || error);
+    const isQuota = Boolean(error.message?.includes('RESOURCE_EXHAUSTED'));
+    return NextResponse.json({
+      users: [],
+      total: 0,
+      error: error.message || 'Failed to fetch waitlist users',
+      isQuotaError: isQuota,
+    }, { status: isQuota ? 429 : 500 });
   }
 }

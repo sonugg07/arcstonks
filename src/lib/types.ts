@@ -30,6 +30,7 @@ export interface AdminStats {
   checkerEnabled: boolean;
   totalTasks?: number;
   totalCompletions?: number;
+  firestoreStatus?: 'connected' | 'degraded' | 'quota_exceeded';
 }
 
 export interface WalletCheckResponse {

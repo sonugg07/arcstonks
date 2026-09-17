@@ -38,10 +38,28 @@ function formatTaskUrl(url?: string): string {
 /**
  * Universal helper to check if a document snapshot exists across both Admin and Client SDKs.
  */
-function docExists(snap: any): boolean {
+function docExists<T = any>(snap: T | null | undefined): snap is NonNullable<T> & { exists: any; data: () => any } {
   if (!snap) return false;
-  if (typeof snap.exists === 'function') return snap.exists();
-  return Boolean(snap.exists);
+  if (typeof (snap as any).exists === 'function') return (snap as any).exists();
+  return Boolean((snap as any).exists);
+}
+
+/**
+ * Wraps a promise with a timeout in milliseconds. If it times out or throws, returns fallback.
+ */
+export async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    if (timer) clearTimeout(timer);
+    return result;
+  } catch {
+    if (timer) clearTimeout(timer);
+    return fallback;
+  }
 }
 
 // -------------------------------------------------------------
@@ -51,24 +69,30 @@ function docExists(snap: any): boolean {
 export async function getSettingsFirestore(): Promise<{ waitlist_enabled: boolean; checker_enabled: boolean; updated_at: string }> {
   try {
     const db = getAdminDb();
-    // Check 'global' and 'default' in COLLECTIONS.SETTINGS ('site_settings') and alias ('settings')
-    let snap = await db.collection(COLLECTIONS.SETTINGS).doc('global').get();
-    if (!docExists(snap)) {
-      snap = await db.collection(COLLECTIONS.SETTINGS).doc('default').get();
-    }
-    if (!docExists(snap)) {
-      try {
-        snap = await db.collection('settings').doc('default').get();
-      } catch {}
-    }
-    if (!docExists(snap)) {
-      try {
-        snap = await db.collection('settings').doc('global').get();
-      } catch {}
+    // Query 'global' directly; fallback to 'default' only if missing
+    let snap = await withTimeout(
+      db.collection(COLLECTIONS.SETTINGS).doc('global').get(),
+      3500,
+      null
+    );
+
+    if (snap && docExists(snap)) {
+      const data = snap.data() || {};
+      return {
+        waitlist_enabled: data.waitlist_enabled !== undefined ? Boolean(data.waitlist_enabled) : true,
+        checker_enabled: data.checker_enabled !== undefined ? Boolean(data.checker_enabled) : true,
+        updated_at: data.updated_at || new Date().toISOString(),
+      };
     }
 
-    if (docExists(snap)) {
-      const data = snap.data() || {};
+    let defaultSnap = await withTimeout(
+      db.collection(COLLECTIONS.SETTINGS).doc('default').get(),
+      3000,
+      null
+    );
+
+    if (defaultSnap && docExists(defaultSnap)) {
+      const data = defaultSnap.data() || {};
       return {
         waitlist_enabled: data.waitlist_enabled !== undefined ? Boolean(data.waitlist_enabled) : true,
         checker_enabled: data.checker_enabled !== undefined ? Boolean(data.checker_enabled) : true,
@@ -208,49 +232,51 @@ export async function getWaitlistUsersFirestore(
   limitCount = 50,
   offset = 0
 ): Promise<{ users: WaitlistUser[]; total: number }> {
-  const db = getAdminDb();
-  let snap = await db.collection(COLLECTIONS.WAITLIST).get();
-  if (snap.empty) {
-    try {
-      const altSnap = await db.collection('waitlist').get();
-      if (!altSnap.empty) snap = altSnap;
-    } catch {}
-  }
-  if (snap.empty) {
-    try {
-      const altSnap2 = await db.collection('users').get();
-      if (!altSnap2.empty) snap = altSnap2;
-    } catch {}
-  }
+  try {
+    const db = getAdminDb();
+    const colRef = db.collection(COLLECTIONS.WAITLIST);
 
-  let list: WaitlistUser[] = [];
-  snap.forEach((d: any) => {
-    const data = d.data() || {};
-    list.push({
-      id: d.id,
-      wallet_address: data.wallet_address || data.address || d.id,
-      created_at: data.created_at || data.createdAt || '',
-      ip_hash: data.ip_hash || data.ipHash || undefined,
-      x_handle: data.x_handle || data.xHandle || data.twitter || undefined,
-    });
-  });
-
-  // Sort by created_at desc
-  list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-
-  // Filter if search provided
-  if (search.trim()) {
-    const term = search.trim().toLowerCase();
-    list = list.filter(
-      u =>
-        u.wallet_address.toLowerCase().includes(term) ||
-        (u.x_handle && u.x_handle.toLowerCase().includes(term))
+    // Read collection with safety timeout
+    const snap = await withTimeout(
+      colRef.limit(250).get(),
+      5000,
+      null
     );
-  }
 
-  const total = list.length;
-  const paginated = list.slice(offset, offset + limitCount);
-  return { users: paginated, total };
+    let list: WaitlistUser[] = [];
+    if (snap && !snap.empty) {
+      snap.forEach((d: any) => {
+        const data = d.data() || {};
+        list.push({
+          id: d.id,
+          wallet_address: data.wallet_address || data.address || d.id,
+          created_at: data.created_at || data.createdAt || '',
+          ip_hash: data.ip_hash || data.ipHash || undefined,
+          x_handle: data.x_handle || data.xHandle || data.twitter || undefined,
+        });
+      });
+    }
+
+    // Sort by created_at desc
+    list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+    // Filter if search provided
+    if (search.trim()) {
+      const term = search.trim().toLowerCase();
+      list = list.filter(
+        u =>
+          u.wallet_address.toLowerCase().includes(term) ||
+          (u.x_handle && u.x_handle.toLowerCase().includes(term))
+      );
+    }
+
+    const total = list.length;
+    const paginated = list.slice(offset, offset + limitCount);
+    return { users: paginated, total };
+  } catch (err: any) {
+    console.warn('[Firestore] getWaitlistUsersFirestore error:', err.message);
+    return { users: [], total: 0 };
+  }
 }
 
 export async function deleteWaitlistUserFirestore(idOrAddress: string): Promise<boolean> {
@@ -400,44 +426,45 @@ export async function getEligibleWalletsFirestore(
   limitCount = 50,
   offset = 0
 ): Promise<{ wallets: EligibleWallet[]; total: number }> {
-  const db = getAdminDb();
-  let snap = await db.collection(COLLECTIONS.ELIGIBLE).get();
-  if (snap.empty) {
-    try {
-      const altSnap = await db.collection('eligible').get();
-      if (!altSnap.empty) snap = altSnap;
-    } catch {}
+  try {
+    const db = getAdminDb();
+    const colRef = db.collection(COLLECTIONS.ELIGIBLE);
+
+    const snap = await withTimeout(
+      colRef.limit(250).get(),
+      5000,
+      null
+    );
+
+    let list: EligibleWallet[] = [];
+    if (snap && !snap.empty) {
+      snap.forEach((d: any) => {
+        const data = d.data() || {};
+        list.push({
+          id: d.id,
+          wallet_address: data.wallet_address || data.address || d.id,
+          allocation: Number(data.allocation) || 1,
+          status: data.status || 'active',
+          created_at: data.created_at || data.createdAt || '',
+          updated_at: data.updated_at || data.updatedAt || '',
+        });
+      });
+    }
+
+    list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+    if (search.trim()) {
+      const term = search.trim().toLowerCase();
+      list = list.filter(w => (w.wallet_address || '').toLowerCase().includes(term));
+    }
+
+    const total = list.length;
+    const paginated = list.slice(offset, offset + limitCount);
+    return { wallets: paginated, total };
+  } catch (err: any) {
+    console.warn('[Firestore] getEligibleWalletsFirestore error:', err.message);
+    return { wallets: [], total: 0 };
   }
-  if (snap.empty) {
-    try {
-      const altSnap2 = await db.collection('whitelist').get();
-      if (!altSnap2.empty) snap = altSnap2;
-    } catch {}
-  }
-
-  let list: EligibleWallet[] = [];
-  snap.forEach((d: any) => {
-    const data = d.data() || {};
-    list.push({
-      id: d.id,
-      wallet_address: data.wallet_address || data.address || d.id,
-      allocation: Number(data.allocation) || 1,
-      status: data.status || 'active',
-      created_at: data.created_at || data.createdAt || '',
-      updated_at: data.updated_at || data.updatedAt || '',
-    });
-  });
-
-  list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-
-  if (search.trim()) {
-    const term = search.trim().toLowerCase();
-    list = list.filter(w => (w.wallet_address || '').toLowerCase().includes(term));
-  }
-
-  const total = list.length;
-  const paginated = list.slice(offset, offset + limitCount);
-  return { wallets: paginated, total };
 }
 
 export async function addEligibleWalletFirestore(
@@ -746,9 +773,13 @@ export async function getPublicTasksFirestore(rawAddress?: string): Promise<Publ
 export async function getAllTasksAdminFirestore(): Promise<WaitlistTask[]> {
   try {
     const db = getAdminDb();
-    const snap = await db.collection(COLLECTIONS.TASKS).get();
+    const snap = await withTimeout(
+      db.collection(COLLECTIONS.TASKS).get(),
+      4000,
+      null
+    );
 
-    if (!snap.empty) {
+    if (snap && !snap.empty) {
       let tasks: WaitlistTask[] = [];
       snap.forEach((d: any) => {
         const data = d.data() || {};
@@ -769,23 +800,6 @@ export async function getAllTasksAdminFirestore(): Promise<WaitlistTask[]> {
       tasks.sort((a, b) => a.display_order - b.display_order);
       cachedTasks = tasks;
       lastTaskFetchTime = Date.now();
-
-      // Compute completion counts safely
-      try {
-        const compSnap = await db.collection(COLLECTIONS.COMPLETIONS).get();
-        const countMap = new Map<string, number>();
-        compSnap.forEach((d: any) => {
-          const data = d.data() || {};
-          const tid = String(data.task_id || '');
-          if (tid) countMap.set(tid, (countMap.get(tid) || 0) + 1);
-        });
-        tasks.forEach((t: any) => {
-          t.completionCount = countMap.get(String(t.id)) || 0;
-        });
-      } catch (err: any) {
-        console.warn('[Firestore] Could not aggregate task completion counts:', err.message);
-      }
-
       return tasks;
     }
   } catch (err: any) {
@@ -1133,120 +1147,102 @@ export async function isProofUsedByAnotherWalletFirestore(
 // Admin Stats
 // -------------------------------------------------------------
 
-export async function getAdminStatsFirestore(): Promise<AdminStats> {
+export async function getAdminStatsFirestore(): Promise<AdminStats & { firestoreStatus?: 'connected' | 'degraded' | 'quota_exceeded' }> {
   const now = Date.now();
-  const currentTtl = (cachedAdminStats && (cachedAdminStats.totalWaitlist > 0 || cachedAdminStats.totalEligible > 0))
-    ? ADMIN_STATS_TTL_MS
-    : 5000;
+  const currentTtl = cachedAdminStats ? ADMIN_STATS_TTL_MS : 5000;
 
   if (cachedAdminStats && now - lastAdminStatsTime < currentTtl) {
-    return cachedAdminStats;
+    return { ...cachedAdminStats, firestoreStatus: 'connected' };
   }
 
-  const settings = await getSettingsFirestore();
   let totalWaitlist = cachedAdminStats?.totalWaitlist || 0;
   let totalEligible = cachedAdminStats?.totalEligible || 0;
   let totalAllocation = cachedAdminStats?.totalAllocation || 0;
   let totalTasks = cachedTasks.length;
   let totalCompletions = cachedAdminStats?.totalCompletions || inMemoryCompletions.size;
+  let waitlistEnabled = cachedAdminStats?.waitlistEnabled ?? true;
+  let checkerEnabled = cachedAdminStats?.checkerEnabled ?? true;
+  let firestoreStatus: 'connected' | 'degraded' | 'quota_exceeded' = 'connected';
 
   try {
     const db = getAdminDb();
 
-    // Waitlist Count
-    try {
-      let count = 0;
-      try {
-        const waitlistCountSnap = await db.collection(COLLECTIONS.WAITLIST).count().get();
-        count = waitlistCountSnap.data().count;
-      } catch (countErr: any) {
-        try {
-          const snap = await db.collection(COLLECTIONS.WAITLIST).select().get();
-          count = snap.size;
-        } catch {}
+    // Query Settings and Counts in PARALLEL with Promise.allSettled and a 4.5-second timeout
+    const results = await withTimeout(
+      Promise.allSettled([
+        getSettingsFirestore(),
+        db.collection(COLLECTIONS.WAITLIST).count().get(),
+        db.collection(COLLECTIONS.ELIGIBLE).count().get(),
+        db.collection(COLLECTIONS.TASKS).count().get(),
+        db.collection(COLLECTIONS.COMPLETIONS).count().get(),
+      ]),
+      4500,
+      null
+    );
+
+    if (results) {
+      // 0: Settings
+      if (results[0].status === 'fulfilled') {
+        waitlistEnabled = results[0].value.waitlist_enabled;
+        checkerEnabled = results[0].value.checker_enabled;
       }
 
-      if (count === 0) {
-        try {
-          const altSnap = await db.collection('waitlist').select().get();
-          if (altSnap.size > 0) count = altSnap.size;
-        } catch {}
-      }
-      if (count === 0) {
-        try {
-          const altSnap2 = await db.collection('users').select().get();
-          if (altSnap2.size > 0) count = altSnap2.size;
-        } catch {}
-      }
-      totalWaitlist = count;
-    } catch (countErr: any) {
-      console.warn('[Firestore] Failed to get waitlist count:', countErr.message);
-    }
-
-    // Eligible Count
-    try {
-      let count = 0;
-      try {
-        const eligibleCountSnap = await db.collection(COLLECTIONS.ELIGIBLE).count().get();
-        count = eligibleCountSnap.data().count;
-      } catch (countErr: any) {
-        try {
-          const snap = await db.collection(COLLECTIONS.ELIGIBLE).select().get();
-          count = snap.size;
-        } catch {}
+      // 1: Waitlist count
+      if (results[1].status === 'fulfilled') {
+        totalWaitlist = results[1].value.data().count;
+      } else {
+        const msg = results[1].reason?.message || '';
+        if (msg.includes('RESOURCE_EXHAUSTED')) {
+          firestoreStatus = 'quota_exceeded';
+        } else {
+          firestoreStatus = 'degraded';
+        }
       }
 
-      if (count === 0) {
-        try {
-          const altSnap = await db.collection('eligible').select().get();
-          if (altSnap.size > 0) count = altSnap.size;
-        } catch {}
+      // 2: Eligible count
+      if (results[2].status === 'fulfilled') {
+        totalEligible = results[2].value.data().count;
+        totalAllocation = totalEligible;
+      } else {
+        const msg = results[2].reason?.message || '';
+        if (msg.includes('RESOURCE_EXHAUSTED')) {
+          firestoreStatus = 'quota_exceeded';
+        }
       }
-      if (count === 0) {
-        try {
-          const altSnap2 = await db.collection('whitelist').select().get();
-          if (altSnap2.size > 0) count = altSnap2.size;
-        } catch {}
+
+      // 3: Tasks count
+      if (results[3].status === 'fulfilled') {
+        totalTasks = results[3].value.data().count;
       }
-      totalEligible = count;
-      totalAllocation = count;
-    } catch (countErr: any) {
-      console.warn('[Firestore] Failed to get eligible count:', countErr.message);
-    }
 
-    try {
-      const tasksCountSnap = await db.collection(COLLECTIONS.TASKS).count().get();
-      totalTasks = tasksCountSnap.data().count;
-    } catch {
-      try {
-        const snap = await db.collection(COLLECTIONS.TASKS).select().get();
-        totalTasks = snap.size;
-      } catch {}
-    }
-
-    try {
-      const compCountSnap = await db.collection(COLLECTIONS.COMPLETIONS).count().get();
-      totalCompletions = compCountSnap.data().count;
-    } catch {
-      try {
-        const snap = await db.collection(COLLECTIONS.COMPLETIONS).select().get();
-        totalCompletions = snap.size;
-      } catch {}
+      // 4: Completions count
+      if (results[4].status === 'fulfilled') {
+        totalCompletions = results[4].value.data().count;
+      }
+    } else {
+      // Parallel queries timed out
+      firestoreStatus = 'degraded';
+      console.warn('[Firestore] getAdminStatsFirestore parallel queries timed out after 4.5s. Returning cached/fallback stats.');
     }
   } catch (err: any) {
     console.warn('[Firestore] Error computing admin stats (returning safe fallback):', err.message);
+    if ((err.message || '').includes('RESOURCE_EXHAUSTED')) {
+      firestoreStatus = 'quota_exceeded';
+    } else {
+      firestoreStatus = 'degraded';
+    }
   }
 
   cachedAdminStats = {
     totalWaitlist,
     totalEligible,
     totalAllocation,
-    waitlistEnabled: settings.waitlist_enabled,
-    checkerEnabled: settings.checker_enabled,
+    waitlistEnabled,
+    checkerEnabled,
     totalTasks: Math.max(totalTasks, cachedTasks.length),
     totalCompletions: Math.max(totalCompletions, inMemoryCompletions.size),
   };
   lastAdminStatsTime = now;
 
-  return cachedAdminStats;
+  return { ...cachedAdminStats, firestoreStatus };
 }

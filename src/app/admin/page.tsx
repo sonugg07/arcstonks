@@ -52,11 +52,14 @@ export default function AdminPage() {
 
   // Stats & Toggles
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [updatingSettings, setUpdatingSettings] = useState(false);
 
   // Tasks data
   const [tasks, setTasks] = useState<WaitlistTask[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<WaitlistTask | null>(null);
@@ -75,6 +78,7 @@ export default function AdminPage() {
   const [waitlistTotal, setWaitlistTotal] = useState(0);
   const [waitlistSearch, setWaitlistSearch] = useState('');
   const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [waitlistPage, setWaitlistPage] = useState(0);
 
   // Eligible Wallets data
@@ -82,6 +86,7 @@ export default function AdminPage() {
   const [eligibleTotal, setEligibleTotal] = useState(0);
   const [eligibleSearch, setEligibleSearch] = useState('');
   const [eligibleLoading, setEligibleLoading] = useState(false);
+  const [eligibleError, setEligibleError] = useState<string | null>(null);
   const [eligiblePage, setEligiblePage] = useState(0);
 
   // Modals
@@ -110,7 +115,7 @@ export default function AdminPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Persistent Auth Fetch Helper (Supports Authorization Bearer token as well as cookies)
+  // Persistent Auth Fetch Helper (Supports Authorization Bearer token as well as cookies, timeout protection, and 401 refresh)
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     let token = typeof window !== 'undefined' ? localStorage.getItem('arcstonks_admin_token') : null;
     try {
@@ -126,62 +131,97 @@ export default function AdminPage() {
       }
     } catch {}
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s safety timeout
+
     const headers = new Headers(options.headers || {});
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
-    return fetch(url, { ...options, headers, cache: 'no-store' });
-  }, []);
 
-  // Check auth
-  const checkAuth = useCallback(async () => {
     try {
-      const res = await authFetch('/api/admin/me');
-      const data = await res.json();
-      setAuthenticated(data.authenticated);
-      if (data.authenticated) {
-        fetchStats();
-        fetchWaitlist();
-        fetchTasks();
+      const res = await fetch(url, {
+        ...options,
+        headers,
+        cache: 'no-store',
+        signal: options.signal || controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      // If 401 and user is logged in, try forcing a fresh ID token and retry once
+      if (res.status === 401) {
+        try {
+          const auth = getFirebaseAuth();
+          if (auth?.currentUser) {
+            const freshToken = await auth.currentUser.getIdToken(true);
+            if (freshToken) {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('arcstonks_admin_token', freshToken);
+              }
+              const retryHeaders = new Headers(options.headers || {});
+              retryHeaders.set('Authorization', `Bearer ${freshToken}`);
+              return await fetch(url, { ...options, headers: retryHeaders, cache: 'no-store' });
+            }
+          }
+        } catch {}
       }
-    } catch {
-      setAuthenticated(false);
+
+      return res;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      throw err;
     }
-  }, [authFetch]);
+  }, []);
 
   // Fetch Stats
   const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError(null);
     try {
       const res = await authFetch('/api/admin/stats');
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setStats(data);
+        if (data.firestoreStatus === 'quota_exceeded') {
+          setStatsError('Google Cloud Firestore read quota temporarily exceeded. Displaying resilient cached data.');
+        } else if (data.firestoreStatus === 'degraded') {
+          setStatsError('Firestore response degraded. Real-time updates may be delayed.');
+        }
       } else {
-        console.warn(`[Admin] Failed to fetch stats: HTTP ${res.status}`);
+        const msg = data.error || `Failed to fetch stats: HTTP ${res.status}`;
+        setStatsError(msg);
+        console.warn(`[Admin] Failed to fetch stats: ${msg}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch stats', err);
+      setStatsError(err.name === 'AbortError' ? 'Connection timed out. Click Retry below.' : (err.message || 'Failed to connect to stats API'));
+    } finally {
+      setStatsLoading(false);
     }
   }, [authFetch]);
 
   // Fetch Waitlist
   const fetchWaitlist = useCallback(async () => {
     setWaitlistLoading(true);
+    setWaitlistError(null);
     try {
       const limit = 25;
       const offset = waitlistPage * limit;
       const res = await authFetch(
         `/api/admin/waitlist?search=${encodeURIComponent(waitlistSearch)}&limit=${limit}&offset=${offset}`
       );
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setWaitlistUsers(data.users || []);
         setWaitlistTotal(data.total || 0);
       } else {
-        console.warn(`[Admin] Failed to fetch waitlist: HTTP ${res.status}`);
+        const msg = data.error || `HTTP ${res.status}`;
+        setWaitlistError(msg);
+        console.warn(`[Admin] Failed to fetch waitlist: ${msg}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch waitlist', err);
+      setWaitlistError(err.name === 'AbortError' ? 'Connection timed out. Click Retry.' : (err.message || 'Failed to load waitlist'));
     } finally {
       setWaitlistLoading(false);
     }
@@ -190,21 +230,25 @@ export default function AdminPage() {
   // Fetch Eligible
   const fetchEligible = useCallback(async () => {
     setEligibleLoading(true);
+    setEligibleError(null);
     try {
       const limit = 25;
       const offset = eligiblePage * limit;
       const res = await authFetch(
         `/api/admin/eligible?search=${encodeURIComponent(eligibleSearch)}&limit=${limit}&offset=${offset}`
       );
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setEligibleWallets(data.wallets || []);
         setEligibleTotal(data.total || 0);
       } else {
-        console.warn(`[Admin] Failed to fetch eligible: HTTP ${res.status}`);
+        const msg = data.error || `HTTP ${res.status}`;
+        setEligibleError(msg);
+        console.warn(`[Admin] Failed to fetch eligible: ${msg}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch eligible', err);
+      setEligibleError(err.name === 'AbortError' ? 'Connection timed out. Click Retry.' : (err.message || 'Failed to load eligible list'));
     } finally {
       setEligibleLoading(false);
     }
@@ -213,20 +257,54 @@ export default function AdminPage() {
   // Fetch Tasks
   const fetchTasks = useCallback(async () => {
     setTasksLoading(true);
+    setTasksError(null);
     try {
       const res = await authFetch('/api/admin/tasks');
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setTasks(data.tasks || []);
       } else {
-        console.warn(`[Admin] Failed to fetch tasks: HTTP ${res.status}`);
+        const msg = data.error || `HTTP ${res.status}`;
+        setTasksError(msg);
+        console.warn(`[Admin] Failed to fetch tasks: ${msg}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch tasks', err);
+      setTasksError(err.name === 'AbortError' ? 'Connection timed out. Click Retry.' : (err.message || 'Failed to load tasks'));
     } finally {
       setTasksLoading(false);
     }
   }, [authFetch]);
+
+  // Check auth
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/admin/me');
+      const data = await res.json();
+      setAuthenticated(data.authenticated);
+    } catch {
+      setAuthenticated(false);
+    }
+  }, [authFetch]);
+
+  // Single orchestrated data load with lock guard
+  const isFetchingRef = React.useRef(false);
+  const loadDashboardData = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    try {
+      await fetchStats();
+      if (activeTab === 'waitlist') {
+        await fetchWaitlist();
+      } else if (activeTab === 'eligible') {
+        await fetchEligible();
+      } else if (activeTab === 'tasks') {
+        await fetchTasks();
+      }
+    } finally {
+      isFetchingRef.current = false;
+    }
+  }, [fetchStats, fetchWaitlist, fetchEligible, fetchTasks, activeTab]);
 
   useEffect(() => {
     let unsubscribeAuth: (() => void) | undefined;
@@ -257,9 +335,6 @@ export default function AdminPage() {
                   }
                   setAuthenticated(true);
                   setLoginError(null);
-                  fetchStats();
-                  fetchWaitlist();
-                  fetchTasks();
                 } catch (err) {
                   console.error('Failed to sync Firebase Auth token with session', err);
                 }
@@ -292,20 +367,13 @@ export default function AdminPage() {
     return () => {
       if (unsubscribeAuth) unsubscribeAuth();
     };
-  }, [checkAuth, fetchStats, fetchWaitlist, fetchTasks]);
+  }, [checkAuth]);
 
   useEffect(() => {
     if (authenticated) {
-      fetchStats();
-      if (activeTab === 'waitlist') {
-        fetchWaitlist();
-      } else if (activeTab === 'eligible') {
-        fetchEligible();
-      } else if (activeTab === 'tasks') {
-        fetchTasks();
-      }
+      loadDashboardData();
     }
-  }, [authenticated, activeTab, fetchStats, fetchWaitlist, fetchEligible, fetchTasks]);
+  }, [authenticated, activeTab, loadDashboardData]);
 
   // Create Task Handler
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -958,6 +1026,16 @@ export default function AdminPage() {
               <span className="text-teal-400">Firestore</span>
             </div>
 
+            <button
+              onClick={() => loadDashboardData()}
+              disabled={statsLoading || waitlistLoading || eligibleLoading || tasksLoading}
+              className="px-3.5 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/50 text-xs font-mono flex items-center space-x-1.5 transition-all disabled:opacity-50"
+              title="Refresh dashboard data"
+            >
+              <RefreshCw className={`w-3 h-3 ${statsLoading || waitlistLoading || eligibleLoading || tasksLoading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+
             <Link
               href="/"
               target="_blank"
@@ -978,6 +1056,24 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+        {/* Error Alert Banner */}
+        {statsError && (
+          <div className="flex items-center justify-between p-4 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-200 text-xs font-mono">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{statsError}</span>
+            </div>
+            <button
+              onClick={() => fetchStats()}
+              disabled={statsLoading}
+              className="px-3 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold ml-4 shrink-0 flex items-center space-x-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${statsLoading ? 'animate-spin' : ''}`} />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
+
         {/* Top Operational Controls & Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Waitlist Count Card */}
@@ -987,7 +1083,7 @@ export default function AdminPage() {
               <Users className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="text-3xl font-extrabold font-mono text-white glow-cyan">
-              {stats === null ? '...' : stats.totalWaitlist.toLocaleString()}
+              {stats === null ? (statsLoading ? 'SYNCING...' : '0') : stats.totalWaitlist.toLocaleString()}
             </div>
             <div className="text-[11px] font-mono text-slate-400">
               Public submissions in <code className="text-cyan-400">waitlist_users</code>
@@ -1001,7 +1097,7 @@ export default function AdminPage() {
               <Layers className="w-4 h-4 text-teal-400" />
             </div>
             <div className="text-3xl font-extrabold font-mono text-white glow-teal">
-              {stats === null ? '...' : stats.totalEligible.toLocaleString()}
+              {stats === null ? (statsLoading ? 'SYNCING...' : '0') : stats.totalEligible.toLocaleString()}
             </div>
             <div className="text-[11px] font-mono text-slate-400">
               Approved wallets in <code className="text-teal-400">eligible_wallets</code>
@@ -1014,21 +1110,21 @@ export default function AdminPage() {
               <span className="uppercase">Waitlist Switch</span>
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  stats === null ? 'bg-slate-600 animate-pulse' : stats.waitlistEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                  statsLoading ? 'bg-amber-400 animate-pulse' : stats?.waitlistEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
                 }`}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <span className="font-mono text-sm font-bold text-white">
-                WAITLIST: {stats === null ? '...' : (stats.waitlistEnabled ? 'ON' : 'OFF')}
+                WAITLIST: {stats === null ? (statsLoading ? 'SYNCING...' : 'OFF') : (stats.waitlistEnabled ? 'ON' : 'OFF')}
               </span>
               <button
                 onClick={() => handleToggle('waitlist_enabled')}
-                disabled={stats === null || updatingSettings}
+                disabled={stats === null || statsLoading || updatingSettings}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   stats?.waitlistEnabled ? 'bg-cyan-500' : 'bg-slate-800'
-                } ${stats === null || updatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${stats === null || statsLoading || updatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -1039,7 +1135,7 @@ export default function AdminPage() {
             </div>
 
             <div className="text-[11px] font-mono text-slate-400">
-              {stats === null ? 'Connecting to Firestore...' : stats.waitlistEnabled ? 'Public submissions active' : 'Submissions locked'}
+              {statsLoading ? 'Syncing status...' : stats?.waitlistEnabled ? 'Public submissions active' : 'Submissions locked'}
             </div>
           </div>
 
@@ -1049,21 +1145,21 @@ export default function AdminPage() {
               <span className="uppercase">Checker Switch</span>
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  stats === null ? 'bg-slate-600 animate-pulse' : stats.checkerEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                  statsLoading ? 'bg-amber-400 animate-pulse' : stats?.checkerEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
                 }`}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <span className="font-mono text-sm font-bold text-white">
-                CHECKER: {stats === null ? '...' : (stats.checkerEnabled ? 'ON' : 'OFF')}
+                CHECKER: {stats === null ? (statsLoading ? 'SYNCING...' : 'OFF') : (stats.checkerEnabled ? 'ON' : 'OFF')}
               </span>
               <button
                 onClick={() => handleToggle('checker_enabled')}
-                disabled={stats === null || updatingSettings}
+                disabled={stats === null || statsLoading || updatingSettings}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   stats?.checkerEnabled ? 'bg-teal-500' : 'bg-slate-800'
-                } ${stats === null || updatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${stats === null || statsLoading || updatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -1074,7 +1170,7 @@ export default function AdminPage() {
             </div>
 
             <div className="text-[11px] font-mono text-slate-400">
-              {stats === null ? 'Connecting to Firestore...' : stats.checkerEnabled ? 'Public checker operational' : 'Checker unavailable'}
+              {statsLoading ? 'Syncing status...' : stats?.checkerEnabled ? 'Public checker operational' : 'Checker unavailable'}
             </div>
           </div>
         </div>
@@ -1090,7 +1186,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Users ({stats === null ? '...' : stats.totalWaitlist})
+              Waitlist Users ({stats === null ? (statsLoading ? '...' : waitlistUsers.length) : stats.totalWaitlist})
             </button>
             <button
               onClick={() => setActiveTab('eligible')}
@@ -1100,7 +1196,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Eligible Wallets ({stats === null ? '...' : stats.totalEligible})
+              Eligible Wallets ({stats === null ? (statsLoading ? '...' : eligibleWallets.length) : stats.totalEligible})
             </button>
             <button
               onClick={() => setActiveTab('tasks')}
@@ -1110,7 +1206,7 @@ export default function AdminPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Waitlist Tasks ({stats === null ? '...' : (stats.totalTasks ?? tasks.length)})
+              Waitlist Tasks ({stats === null ? (statsLoading ? '...' : tasks.length) : (stats.totalTasks ?? tasks.length)})
             </button>
           </div>
 
@@ -1185,6 +1281,21 @@ export default function AdminPage() {
                         <td colSpan={5} className="py-12 text-center text-slate-400">
                           <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-400" />
                           <span>Loading Waitlist Submissions...</span>
+                        </td>
+                      </tr>
+                    ) : waitlistError ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-amber-300 bg-amber-950/20">
+                          <AlertCircle className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+                          <div className="font-bold mb-1">Failed to load waitlist data</div>
+                          <div className="text-slate-400 text-[11px] mb-3">{waitlistError}</div>
+                          <button
+                            onClick={() => fetchWaitlist()}
+                            className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400 text-cyan-300 font-bold text-xs inline-flex items-center space-x-1"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            <span>Retry Loading Waitlist</span>
+                          </button>
                         </td>
                       </tr>
                     ) : waitlistUsers.length === 0 ? (
@@ -1341,6 +1452,21 @@ export default function AdminPage() {
                           <span>Loading Whitelist Wallets...</span>
                         </td>
                       </tr>
+                    ) : eligibleError ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-amber-300 bg-amber-950/20">
+                          <AlertCircle className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+                          <div className="font-bold mb-1">Failed to load eligible wallets</div>
+                          <div className="text-slate-400 text-[11px] mb-3">{eligibleError}</div>
+                          <button
+                            onClick={() => fetchEligible()}
+                            className="px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400 text-teal-300 font-bold text-xs inline-flex items-center space-x-1"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            <span>Retry Loading Wallets</span>
+                          </button>
+                        </td>
+                      </tr>
                     ) : eligibleWallets.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-slate-500">
@@ -1489,6 +1615,21 @@ export default function AdminPage() {
                         <td colSpan={8} className="py-12 text-center text-slate-400">
                           <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-sky-400" />
                           <span>Loading Community Tasks...</span>
+                        </td>
+                      </tr>
+                    ) : tasksError ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-amber-300 bg-amber-950/20">
+                          <AlertCircle className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+                          <div className="font-bold mb-1">Failed to load community tasks</div>
+                          <div className="text-slate-400 text-[11px] mb-3">{tasksError}</div>
+                          <button
+                            onClick={() => fetchTasks()}
+                            className="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400 text-sky-300 font-bold text-xs inline-flex items-center space-x-1"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            <span>Retry Loading Tasks</span>
+                          </button>
                         </td>
                       </tr>
                     ) : tasks.length === 0 ? (
